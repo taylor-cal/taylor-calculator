@@ -1,18 +1,816 @@
-<!DOCTYPE html>
+const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `datos_linealizacion_${calculationResult.expr.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showSuccess('📊 Datos CSV exportados exitosamente');
+    }
+
+    function shareResult() {
+      if (!calculationResult) return;
+      
+      const text = `🧮 Calculadora Taylor INACAP\n\n${generateShareText()}`;
+      
+      if (navigator.share) {
+        navigator.share({
+          title: 'Resultado de Linealización - INACAP',
+          text: text,
+          url: window.location.href
+        }).catch(() => {
+          copyToClipboard(text);
+        });
+      } else {
+        copyToClipboard(text);
+      }
+    }
+
+    function generateShareText() {
+      if (!calculationResult) return '';
+      
+      const { expr, x0, m, b, unidadX, unidadY } = calculationResult;
+      return `📊 Función: f(x) = ${expr}\n` +
+             `📍 Punto: x₀ = ${formatNumber(x0)}\n` +
+             `📈 Ecuación lineal: y = ${formatNumber(m)}x + ${formatNumber(b)}\n` +
+             `📏 Unidades: [${unidadY}] por [${unidadX}]\n\n` +
+             `Calculado con Calculadora Taylor INACAP`;
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showSuccess('📋 Resultado copiado al portapapeles');
+        }).catch(() => {
+          fallbackCopyToClipboard(text);
+        });
+      } else {
+        fallbackCopyToClipboard(text);
+      }
+    }
+
+    function fallbackCopyToClipboard(text) {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        document.execCommand('copy');
+        showSuccess('📋 Resultado copiado al portapapeles');
+      } catch (err) {
+        showError('No se pudo copiar al portapapeles');
+      } finally {
+        document.body.removeChild(textArea);
+      }
+    }
+
+    function descargarGrafico() {
+      if (!currentPlot) return;
+      
+      const filename = `linealizacion_inacap_${calculationResult.expr.replace(/[^a-zA-Z0-9]/g, '_')}_x0_${calculationResult.x0.toString().replace('.', '_')}`;
+      
+      Plotly.downloadImage('grafico', {
+        format: 'png',
+        width: 1200,
+        height: 800,
+        filename: filename
+      }).then(() => {
+        showSuccess('📥 Gráfico descargado exitosamente');
+      }).catch(() => {
+        showError('No se pudo descargar el gráfico');
+      });
+    }
+
+    // Funciones auxiliares
+    function formatNumber(num) {
+      if (Math.abs(num) < 1e-10) return '0';
+      if (Math.abs(num) < 0.001 || Math.abs(num) > 10000) {
+        return num.toExponential(3);
+      }
+      return parseFloat(num.toFixed(6)).toString();
+    }
+
+    function setFunction(func) {
+      document.getElementById('funcion').value = func;
+      document.getElementById('funcion').focus();
+      
+      const suggestions = {
+        'sin(x)': '0',
+        'cos(x)': '0',
+        'exp(x)': '0',
+        'log(x)': '1',
+        'sqrt(x)': '1',
+        'x^2': '1',
+        'tan(x)': '0',
+        '1/x': '1'
+      };
+      
+      if (suggestions[func] && !document.getElementById('x0').value) {
+        document.getElementById('x0').value = suggestions[func];
+      }
+    }
+
+    function clearForm() {
+      document.getElementById('calculatorForm').reset();
+      document.getElementById('resultado').style.display = 'none';
+      document.getElementById('graficoContainer').style.display = 'none';
+      clearMessages();
+      calculationResult = null;
+      currentPlot = null;
+    }
+
+    function showError(mensaje) {
+      const errorEl = document.createElement('div');
+      errorEl.className = 'error';
+      errorEl.innerHTML = `<strong>❌ Error:</strong> ${mensaje}`;
+      errorEl.style.cssText = `
+        background: linear-gradient(45deg, #f8d7da, #f1c2c3);
+        color: #721c24;
+        padding: 16px;
+        border-radius: 10px;
+        border-left: 4px solid #dc2626;
+        margin-top: 15px;
+        animation: shake 0.5s ease;
+      `;
+      
+      const form = document.getElementById('calculatorForm');
+      form.appendChild(errorEl);
+      
+      errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      setTimeout(() => {
+        if (errorEl.parentNode) {
+          errorEl.parentNode.removeChild(errorEl);
+        }
+      }, 8000);
+    }
+
+    function showSuccess(mensaje) {
+      const successEl = document.createElement('div');
+      successEl.className = 'success';
+      successEl.innerHTML = `<strong>${mensaje}</strong>`;
+      successEl.style.cssText = `
+        background: linear-gradient(45deg, #d4edda, #c3e6cb);
+        color: #155724;
+        padding: 16px;
+        border-radius: 10px;
+        border-left: 4px solid #059669;
+        margin-top: 15px;
+        animation: slideIn 0.3s ease;
+      `;
+      
+      const form = document.getElementById('calculatorForm');
+      form.appendChild(successEl);
+      
+      setTimeout(() => {
+        if (successEl.parentNode) {
+          successEl.parentNode.removeChild(successEl);
+        }
+      }, 4000);
+    }
+
+    function clearMessages() {
+      const errors = document.querySelectorAll('.error, .success');
+      errors.forEach(error => error.remove());
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.body.classList.toggle('dark-mode');
+      localStorage.setItem('darkMode', isDark);
+      updateToggleStyles();
+      
+      if (currentPlot) {
+        const bgColor = isDark ? '#2a2a2a' : 'rgba(0,0,0,0)';
+        const gridColor = isDark ? '#404040' : '#e1e5e9';
+        
+        Plotly.update('grafico', {}, {
+          paper_bgcolor: bgColor,
+          plot_bgcolor: bgColor,
+          'xaxis.gridcolor': gridColor,
+          'yaxis.gridcolor': gridColor
+        });
+      }
+    }
+
+    function updateToggleStyles() {
+      const toggle = document.getElementById('darkModeToggle');
+      const slider = toggle.nextElementSibling;
+      const thumb = slider.nextElementSibling;
+      
+      if (toggle.checked) {
+        slider.style.backgroundColor = '#0066cc';
+        thumb.style.transform = 'translateX(26px)';
+      } else {
+        slider.style.backgroundColor = '#ccc';
+        thumb.style.transform = 'translateX(0)';
+      }
+    }
+
+    // Eventos de teclado
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        calcular();
+      }
+    });
+
+    // Manejo de orientación para móviles
+    window.addEventListener('orientationchange', function() {
+      setTimeout(() => {
+        if (currentPlot) {
+          Plotly.Plots.resize('grafico');
+        }
+      }, 200);
+    });
+
+    window.addEventListener('resize', function() {
+      if (currentPlot) {
+        setTimeout(() => {
+          Plotly.Plots.resize('grafico');
+        }, 100);
+      }
+    });
+
+    // Prevenir zoom en inputs (iOS)
+    document.addEventListener('touchstart', function(e) {
+      if (e.target.tagName === 'INPUT') {
+        e.target.style.fontSize = '16px';
+      }
+    });
+
+    // Auto-guardado del estado
+    function saveState() {
+      if (calculationResult) {
+        const state = {
+          expr: calculationResult.expr,
+          x0: calculationResult.x0,
+          unidadX: calculationResult.unidadX,
+          unidadY: calculationResult.unidadY,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('calculatorState', JSON.stringify(state));
+      }
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem('calculatorState');
+        if (saved) {
+          const state = JSON.parse(saved);
+          const age = Date.now() - state.timestamp;
+          
+          if (age < 3600000) { // 1 hora
+            document.getElementById('funcion').value = state.expr;
+            document.getElementById('x0').value = state.x0;
+            document.getElementById('unidadX').value = state.unidadX || '';
+            document.getElementById('unidadY').value = state.unidadY || '';
+          }
+        }
+      } catch (error) {
+        console.log('No se pudo cargar el estado guardado');
+      }
+    }
+
+    // Service Worker básico para PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        const swCode = `
+          const CACHE_NAME = 'inacap-taylor-calc-v2.1.0';
+          const urlsToCache = [
+            '/',
+            'https://cdn.plot.ly/plotly-latest.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js'
+          ];
+
+          self.addEventListener('install', function(event) {
+            event.waitUntil(
+              caches.open(CACHE_NAME)
+                .then(function(cache) {
+                  return cache.addAll(urlsToCache);
+                })
+            );
+          });
+
+          self.addEventListener('fetch', function(event) {
+            event.respondWith(
+              caches.match(event.request)
+                .then(function(response) {
+                  if (response) {
+                    return response;
+                  }
+                  return fetch(event.request);
+                })
+            );
+          });
+        `;
+        
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        
+        navigator.serviceWorker.register(swUrl)
+          .then(function(registration) {
+            console.log('Service Worker registrado para INACAP:', registration.scope);
+          })
+          .catch(function(error) {
+            console.log('Error al registrar Service Worker:', error);
+          });
+      });
+    }
+
+    // Cargar estado al iniciar
+    loadState();
+
+    // Mensaje de bienvenida
+    console.log('🎓 Calculadora Taylor INACAP v2.1.0 iniciada');
+    console.log('📱 PWA con funcionalidades: Offline, Instalable, Responsive');
+    console.log('🏛️ Instituto Nacional de Capacitación Profesional');
+
+    // Interceptar el cálculo para guardar estado
+    const originalCalcular = calcular;
+    window.calcular = function() {
+      originalCalcular();
+      setTimeout(saveState, 1000);
+    };
+  </script>
+</body>
+</html>="exportToPDF()">📄 PDF</button>
+        <button class="export-btn" onclick="exportToCSV()">📊 CSV</button>
+        <button class="export-btn" onclick="shareResult()">🔗 Compartir</button>
+      </div>
+    </div>
+
+    <div class="graph-container" id="graficoContainer" style="display: none;">
+      <div id="grafico"></div>
+    </div>
+
+    <!-- Toggle modo oscuro -->
+    <div style="display: flex; align-items: center; justify-content: center; margin-top: 25px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 12px; backdrop-filter: blur(10px);">
+      <span style="color: white;">🌙 Modo oscuro</span>
+      <label style="position: relative; display: inline-block; width: 60px; height: 34px; margin-left: 10px;">
+        <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()" style="opacity: 0; width: 0; height: 0;">
+        <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.4s; border-radius: 34px;"></span>
+        <span style="position: absolute; content: ''; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: 0.4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></span>
+      </label>
+    </div>
+  </div>
+
+  <script>
+    // Variables globales
+    let currentPlot = null;
+    let calculationResult = null;
+    let currentPrecision = 5;
+    let calculationStartTime = 0;
+
+    // Configuración inicial
+    document.addEventListener('DOMContentLoaded', function() {
+      // Cargar preferencias
+      const darkMode = localStorage.getItem('darkMode') === 'true';
+      const savedTheme = localStorage.getItem('selectedTheme') || 'inacap';
+      
+      if (darkMode) {
+        document.body.classList.add('dark-mode');
+        document.getElementById('darkModeToggle').checked = true;
+        updateToggleStyles();
+      }
+      
+      // Aplicar tema guardado
+      changeTheme(savedTheme);
+      
+      // Configurar Plotly para móvil
+      if (window.innerWidth < 768) {
+        Plotly.setPlotConfig({
+          responsive: true,
+          displayModeBar: false
+        });
+      }
+
+      // Manejar parámetros URL
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('func')) {
+        document.getElementById('funcion').value = urlParams.get('func');
+      }
+      if (urlParams.get('x0')) {
+        document.getElementById('x0').value = urlParams.get('x0');
+      }
+    });
+
+    // Funciones de tema
+    function changeTheme(themeName) {
+      // Remover clases de tema anteriores
+      document.body.classList.remove('theme-inacap', 'theme-green', 'theme-purple', 'theme-red');
+      
+      // Agregar nueva clase de tema
+      document.body.classList.add(`theme-${themeName}`);
+      
+      // Actualizar botones activos
+      document.querySelectorAll('.theme-option').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      document.querySelector(`.theme-${themeName}`).classList.add('active');
+      
+      // Guardar preferencia
+      localStorage.setItem('selectedTheme', themeName);
+      
+      // Actualizar meta theme-color
+      const colors = {
+        inacap: '#0066cc',
+        green: '#059669',
+        purple: '#7c3aed',
+        red: '#dc2626'
+      };
+      
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', colors[themeName]);
+      
+      // Actualizar gráfico si existe
+      if (currentPlot) {
+        setTimeout(() => {
+          Plotly.Plots.resize('grafico');
+        }, 100);
+      }
+    }
+
+    // Funciones avanzadas
+    function toggleAdvanced() {
+      const content = document.getElementById('advancedContent');
+      const arrow = document.getElementById('advancedArrow');
+      
+      if (content.classList.contains('show')) {
+        content.classList.remove('show');
+        arrow.textContent = '▼';
+      } else {
+        content.classList.add('show');
+        arrow.textContent = '▲';
+      }
+    }
+
+    function updatePrecision(value) {
+      currentPrecision = parseInt(value);
+      const labels = ['Muy Baja', 'Baja', 'Baja', 'Estándar', 'Estándar', 'Estándar', 'Alta', 'Alta', 'Muy Alta', 'Máxima'];
+      document.getElementById('precisionValue').textContent = labels[value - 1];
+    }
+
+    function toggleStatistics() {
+      const panel = document.getElementById('statisticsPanel');
+      panel.classList.toggle('show');
+    }
+
+    function resetAll() {
+      clearForm();
+      document.getElementById('statisticsPanel').classList.remove('show');
+      document.getElementById('advancedContent').classList.remove('show');
+      document.getElementById('advancedArrow').textContent = '▼';
+      currentPrecision = 5;
+      document.getElementById('precisionSlider').value = 5;
+      updatePrecision(5);
+    }
+
+    // Función principal de cálculo mejorada
+    document.getElementById('calculatorForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      calcular();
+    });
+
+    function calcular() {
+      calculationStartTime = performance.now();
+      
+      const loadingEl = document.getElementById('loading');
+      const resultadoEl = document.getElementById('resultado');
+      const graficoContainer = document.getElementById('graficoContainer');
+      const calculateBtn = document.getElementById('calculateBtn');
+      
+      calculateBtn.disabled = true;
+      loadingEl.classList.add('active');
+      resultadoEl.style.display = 'none';
+      graficoContainer.style.display = 'none';
+      clearMessages();
+
+      try {
+        const expr = document.getElementById('funcion').value.trim();
+        const x0Input = document.getElementById('x0').value.trim();
+        const unidadX = document.getElementById('unidadX').value.trim() || 'x';
+        const unidadY = document.getElementById('unidadY').value.trim() || 'f(x)';
+
+        if (!expr) throw new Error('Por favor ingresa una función');
+        if (!x0Input) throw new Error('Por favor ingresa el valor de x₀');
+
+        // Evaluar x0
+        let x0;
+        try {
+          x0 = math.evaluate(x0Input);
+        } catch (error) {
+          x0 = parseFloat(x0Input);
+          if (isNaN(x0)) {
+            throw new Error('El valor de x₀ no es válido. Usa números o expresiones como π/2');
+          }
+        }
+
+        // Compilar función
+        const f = math.compile(expr);
+        
+        // Verificar función válida
+        const testValue = f.evaluate({ x: x0 });
+        if (!isFinite(testValue)) {
+          throw new Error(`La función no está definida en x₀ = ${formatNumber(x0)}`);
+        }
+
+        // Calcular derivada con precisión ajustable
+        const h = Math.pow(10, -(4 + currentPrecision));
+        const f0 = f.evaluate({ x: x0 });
+        
+        let fp;
+        try {
+          const f_plus = f.evaluate({ x: x0 + h });
+          const f_minus = f.evaluate({ x: x0 - h });
+          fp = (f_plus - f_minus) / (2 * h);
+          
+          if (!isFinite(fp)) {
+            const f_forward = f.evaluate({ x: x0 + h });
+            fp = (f_forward - f0) / h;
+          }
+        } catch (error) {
+          const f_forward = f.evaluate({ x: x0 + h });
+          fp = (f_forward - f0) / h;
+        }
+
+        const m = fp;
+        const b = f0 - m * x0;
+
+        if (!isFinite(m) || !isFinite(b)) {
+          throw new Error('No se pudo calcular la derivada en este punto');
+        }
+
+        calculationResult = { expr, x0, unidadX, unidadY, f, f0, fp, m, b };
+
+        // Analizar función para estadísticas
+        analyzeFunctionForStats(expr, x0, fp);
+
+        // Generar resultados
+        const resultado = generateDetailedResult();
+        const interpretacion = generateAdvancedInterpretation();
+
+        document.getElementById('resultadoContent').textContent = resultado;
+        document.getElementById('interpretacionContent').textContent = interpretacion;
+
+        // Generar gráfico
+        setTimeout(() => {
+          generarGrafico();
+          
+          loadingEl.classList.remove('active');
+          resultadoEl.style.display = 'block';
+          graficoContainer.style.display = 'block';
+          calculateBtn.disabled = false;
+          
+          resultadoEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          showSuccess('✅ Cálculo completado exitosamente');
+          
+          // Actualizar tiempo de cálculo
+          const calculationTime = performance.now() - calculationStartTime;
+          document.getElementById('statTime').textContent = `${calculationTime.toFixed(1)} ms`;
+        }, 800);
+
+      } catch (error) {
+        loadingEl.classList.remove('active');
+        calculateBtn.disabled = false;
+        showError(error.message);
+      }
+    }
+
+    function analyzeFunctionForStats(expr, x0, fp) {
+      // Determinar tipo de función
+      let functionType = 'Polinómica';
+      if (expr.includes('sin') || expr.includes('cos') || expr.includes('tan')) {
+        functionType = 'Trigonométrica';
+      } else if (expr.includes('exp') || expr.includes('log')) {
+        functionType = 'Exponencial/Logarítmica';
+      } else if (expr.includes('sqrt')) {
+        functionType = 'Radical';
+      }
+      
+      // Determinar comportamiento
+      let behavior = fp > 0 ? 'Creciente' : fp < 0 ? 'Decreciente' : 'Constante';
+      
+      // Estimar curvatura (segunda derivada aproximada)
+      const h = 1e-6;
+      let curvature = 'No determinada';
+      try {
+        const f = math.compile(expr);
+        const f_plus = (f.evaluate({ x: x0 + h }) - f.evaluate({ x: x0 })) / h;
+        const f_minus = (f.evaluate({ x: x0 }) - f.evaluate({ x: x0 - h })) / h;
+        const secondDerivative = (f_plus - f_minus) / h;
+        
+        if (Math.abs(secondDerivative) < 1e-6) {
+          curvature = 'Recta (curvatura = 0)';
+        } else if (secondDerivative > 0) {
+          curvature = 'Cóncava hacia arriba';
+        } else {
+          curvature = 'Cóncava hacia abajo';
+        }
+      } catch (error) {
+        curvature = 'No calculable';
+      }
+      
+      // Precisión estimada
+      const precisionLabels = ['Muy Baja (±0.1)', 'Baja (±0.01)', 'Estándar (±0.001)', 'Alta (±0.0001)', 'Muy Alta (±0.00001)'];
+      const precisionIndex = Math.min(Math.floor(currentPrecision / 2), precisionLabels.length - 1);
+      
+      document.getElementById('statFunctionType').textContent = functionType;
+      document.getElementById('statBehavior').textContent = behavior;
+      document.getElementById('statCurvature').textContent = curvature;
+      document.getElementById('statPrecision').textContent = precisionLabels[precisionIndex];
+    }
+
+    function generateDetailedResult() {
+      const { expr, x0, unidadX, unidadY, f0, fp, m, b } = calculationResult;
+      
+      return `📌 ECUACIÓN LINEAL:\n   y = ${formatNumber(m)}x + ${formatNumber(b)}\n\n` +
+             `📍 PUNTO DE EVALUACIÓN:\n   f(${formatNumber(x0)}) = ${formatNumber(f0)}\n\n` +
+             `📈 DERIVADA (PENDIENTE):\n   f'(${formatNumber(x0)}) ≈ ${formatNumber(fp)}\n\n` +
+             `📏 UNIDADES:\n   [${unidadY}] por [${unidadX}]\n\n` +
+             `📐 ECUACIÓN PUNTO-PENDIENTE:\n   y - ${formatNumber(f0)} = ${formatNumber(fp)}(x - ${formatNumber(x0)})\n\n` +
+             `✅ Aproximación válida cerca de x₀ = ${formatNumber(x0)}`;
+    }
+
+    function generateAdvancedInterpretation() {
+      const { expr, x0, fp, f0 } = calculationResult;
+      const absDerivative = Math.abs(fp);
+      
+      let interpretation = '';
+      
+      if (absDerivative < 1e-6) {
+        interpretation = `🔄 ANÁLISIS: Punto crítico detectado\n\n`;
+        interpretation += `• La función f(x) = ${expr} tiene un punto crítico en x = ${formatNumber(x0)}\n`;
+        interpretation += `• La recta tangente es horizontal (pendiente ≈ 0)\n`;
+        interpretation += `• Posible máximo local, mínimo local o punto de inflexión\n`;
+        interpretation += `• La aproximación lineal es y ≈ ${formatNumber(f0)} (constante)`;
+      } else if (fp > 0) {
+        interpretation = `📈 ANÁLISIS: Función creciente\n\n`;
+        interpretation += `• La función f(x) = ${expr} está creciendo en x = ${formatNumber(x0)}\n`;
+        interpretation += `• Tasa de cambio instantánea: ${formatNumber(fp)} unidades por unidad de x\n`;
+        interpretation += `• Para pequeños incrementos Δx, el cambio aproximado es: Δy ≈ ${formatNumber(fp)} × Δx\n`;
+        interpretation += `• La aproximación lineal subestima/sobreestima según la curvatura`;
+      } else {
+        interpretation = `📉 ANÁLISIS: Función decreciente\n\n`;
+        interpretation += `• La función f(x) = ${expr} está decreciendo en x = ${formatNumber(x0)}\n`;
+        interpretation += `• Tasa de cambio instantánea: ${formatNumber(fp)} unidades por unidad de x\n`;
+        interpretation += `• Para pequeños incrementos Δx, el cambio aproximado es: Δy ≈ ${formatNumber(fp)} × Δx\n`;
+        interpretation += `• La pendiente negativa indica decrecimiento local`;
+      }
+      
+      interpretation += `\n\n💡 VALIDEZ:\n`;
+      interpretation += `• La aproximación es más precisa cerca de x₀\n`;
+      interpretation += `• Error típico: O((x-x₀)²) para |x-x₀| pequeño\n`;
+      interpretation += `• Nivel de precisión actual: ${document.getElementById('precisionValue').textContent}`;
+      
+      return interpretation;
+    }
+
+    function generarGrafico() {
+      const { expr, x0, unidadX, unidadY, f, m, b } = calculationResult;
+      
+      let range = Math.max(2, Math.abs(x0) * 0.8);
+      if (expr.includes('log') && x0 <= range) {
+        range = Math.max(x0 + 2, 3);
+      }
+      
+      const xMin = x0 - range;
+      const xMax = x0 + range;
+      const step = (xMax - xMin) / 300; // Mayor resolución
+
+      const xVals = [];
+      const yVals = [];
+      const yTangente = [];
+
+      for (let x = xMin; x <= xMax; x += step) {
+        try {
+          const y = f.evaluate({ x });
+          if (isFinite(y)) {
+            xVals.push(x);
+            yVals.push(y);
+            yTangente.push(m * x + b);
+          }
+        } catch (error) {
+          // Omitir puntos problemáticos
+        }
+      }
+
+      // Trazas con colores INACAP
+      const trace1 = {
+        x: xVals,
+        y: yVals,
+        type: 'scatter',
+        mode: 'lines',
+        name: `f(x) = ${expr}`,
+        line: { color: '#0066cc', width: 3 }
+      };
+
+      const trace2 = {
+        x: xVals,
+        y: yTangente,
+        type: 'scatter',
+        mode: 'lines',
+        name: `Linealización`,
+        line: { dash: 'dash', color: '#ff6600', width: 3 }
+      };
+
+      const trace3 = {
+        x: [x0],
+        y: [calculationResult.f0],
+        type: 'scatter',
+        mode: 'markers',
+        name: `Punto (${formatNumber(x0)}, ${formatNumber(calculationResult.f0)})`,
+        marker: { 
+          size: 14, 
+          color: '#ff6600',
+          line: { width: 3, color: '#0066cc' }
+        }
+      };
+
+      const layout = {
+        title: {
+          text: `Linealización de f(x) = ${expr} | INACAP`,
+          font: { size: window.innerWidth < 768 ? 14 : 16, color: '#0066cc' }
+        },
+        xaxis: { 
+          title: `x (${unidadX})`,
+          showgrid: true,
+          gridcolor: document.body.classList.contains('dark-mode') ? '#404040' : '#e1e5e9'
+        },
+        yaxis: { 
+          title: `f(x) (${unidadY})`,
+          showgrid: true,
+          gridcolor: document.body.classList.contains('dark-mode') ? '#404040' : '#e1e5e9'
+        },
+        legend: { 
+          orientation: 'h',
+          y: -0.15,
+          font: { size: window.innerWidth < 768 ? 10 : 12 }
+        },
+        margin: { l: 50, r: 20, t: 60, b: 90 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        responsive: true,
+        autosize: true
+      };
+
+      const config = {
+        responsive: true,
+        displayModeBar: window.innerWidth > 768,
+        displaylogo: false,
+        modeBarButtonsToRemove: [
+          'pan2d', 'select2d', 'lasso2d', 'autoScale2d', 
+          'hoverClosestCartesian', 'hoverCompareCartesian'
+        ]
+      };
+
+      Plotly.newPlot('grafico', [trace1, trace2, trace3], layout, config);
+      currentPlot = { data: [trace1, trace2, trace3], layout, config };
+    }
+
+    // Funciones de exportación
+    function exportToPDF() {
+      if (!calculationResult) return;
+      
+      // Crear contenido PDF (simulado)
+      const content = generateDetailedResult() + '\n\n' + generateAdvancedInterpretation();
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `linealizacion_${calculationResult.expr.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showSuccess('📄 Archivo exportado exitosamente');
+    }
+
+    function exportToCSV() {
+      if (!currentPlot) return;
+      
+      const data = currentPlot.data[0]; // Datos de la función original
+      let csv = 'x,f(x),Linearización\n';
+      
+      for (let i = 0; i < data.x.length; i++) {
+        csv += `${data.x[i]},${data.y[i]},${currentPlot.data[1].y[i]}\n`;
+      }
+      
+      const blob = new<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Calculadora de linealización con series de Taylor. Instálala como app en tu móvil.">
-  <meta name="theme-color" content="#764ba2">
+  <meta name="description" content="Calculadora de linealización con series de Taylor - Universidad">
+  <meta name="theme-color" content="#1e3a8a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Taylor Calc">
   
-  <title>Calculadora Taylor - PWA</title>
+  <title>Calculadora Taylor - Universidad</title>
   
   <!-- PWA Manifest -->
-  <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkNhbGN1bGFkb3JhIGRlIExpbmVhbGl6YWNpw7NuIFRheWxvciIsCiAgInNob3J0X25hbWUiOiAiVGF5bG9yIENhbGMiLAogICJkZXNjcmlwdGlvbiI6ICJIZXJyYW1pZW50YSBwYXJhIGNhbGN1bGFyIHkgdmlzdWFsaXphciBsYSBsaW5lYWxpemFjacOzbiBkZSBmdW5jaW9uZXMgdXNhbmRvIHNlcmllcyBkZSBUYXlsb3IiLAogICJ2ZXJzaW9uIjogIjIuMC4wIiwKICAic3RhcnRfdXJsIjogIi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiM2NjdlZWEiLAogICJ0aGVtZV9jb2xvciI6ICIjNzY0YmEyIiwKICAib3JpZW50YXRpb24iOiAicG9ydHJhaXQtcHJpbWFyeSIsCiAgImNhdGVnb3JpZXMiOiBbImVkdWNhdGlvbiIsICJ1dGlsaXRpZXMiLCAicHJvZHVjdGl2aXR5Il0sCiAgImxhbmciOiAiZXMiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUIzYVdSMGFEMGlNVGsySWlCb1pXbG5hSFE5SWpFNU5pSWlJSFpwWlhkQ2IzZzlJakFnTUNBdU9EQXVPREFpSUdacGJHdzlJbTV2Ym1VaUlIaHRiRzV6UFNKb2RIUndPaTh2ZDNkM0xuY3pMbTl5Wnk4eU1EQXdMM04yWnlJK1BHUmxabk0rUEd4cGJtVmhja2R5WVdScFpXNTBJR2xrUFNKblltVTNZalppTmpRaUlIZ3hQU0l3SlNJZ2VURTlJakFsYmlRZ2VESTlJakV3TUNVaUlIa3lQU0l4TURBbElqNEpiRzFsYm5SaGQwa2RJR2xrUFNKMFlXZDBMalVrSWlCcGJtWjBJR0ZzYkdVdUlpQndhRzVoVG5SMFZHZHZXU0lnV21SMWVteGFVU0l2UGo1c2IyVnNZbTl0Vkc1SVVWSkVWak1nUVQxaVpIbzBXaXhKTFNab1lUQXlWR1JsWVNJZ1dVczVVSGxuTWxCd0lpOCtQSE4wYjNBZ2IyWm1jMlYwUFNJd0pTSWdjM1I1YkdVOUluTjBiM0F0WTI5c2IzSTZJalEzTmpwQmMyeFlkRE5rSTBKQkpsVTJKeUloSUM4K1BITjBiM0FnYjJabWMyVjBQU0l4TURBbElpQnpkSGxzWlQwaWMzUnZjQzFqYjJ4dmNqb2lKemMyTkRKaU9TdGliM0I4WlZFeU9TTWdJQ0ErUEM5c2FXNWxZWEpIY21Ga2FXVnVkRDQ4TDJSbFpuTStQSEpsWTNRZ2QybGtkR2c5SWpFNU5pSWdhR1ZwWjJoMFBTSXhPVFlpSUdacGJHdzlJblZ5YkNoa1oyRjBZeUFuSUNBUk5UUTNReUJxU1dKbVVTQWpaRGszV1VZZ01qa3dkVGdyWkdwQ0xHMXdiM0FXTVMxeFoydHFJaUJ5ZUQwaU1qUWlMejQ4ZEdWNGRDQjRQU0l5TkRBaUlIazlJamc0SWlCbWIyNTBMV1poYldsc2VUMGlRWEpwWVd3aUlHWnZiblF0YzJsNlpUMGlOREFpSUdacGJHdzlJbmRvYVhSbElpQjBaWGgwTFdGdVkyaHZjajBpYldsa1pHeGxJajVtSnp3dmRHVjRkRDQ4ZEdWNGRDQjRQU0l5TkRBaUlIazlJakV6TkNJZ1ptOXVkQzFtWVcxcGJIazlJa0Z5YVdGc0lpQm1iMjUwTFhOcGVtVTlJakU0SWlCbWFXeHNQU0ozYUdsMFpTSWdiM0JoWTJsMGVUMGlNQzQ1SWlCMFpYaDBMV0Z1WTJodmNqMGliV2xrWkd4bElqNVVZWGxzYjNJOEwzUmxlSFErUEM5emRtYysrIiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWw7YmFzZTY0LFBITjJaeUIzYVdSMGFEMGlOVEV5SWlCb1pXbG5hSFE5SWpVeE1pSWlJSFpwWlhkQ2IzZzlJakFnTUNBMUVEQkJKVEV5SWlCbWFXeHNQU0p1YjI1bElpQjRiV3h1Y3owaWFIUjBjRG92TDNkM2R5NTNNeTV2Y21jdk1qQXdNQzl6ZG1jaVBqeGtaV1p6UGp4c2FXNWxZWEpIY21Ga2FXVnVkQ0JwWkQwaVoyOXdOSEJvTWlJZ2VERTlJakFsSWlCNU1UMGlNQ1VpSUhnelBTSXhNREFsSWlCNU0wMDlJakV3TUNVaVBqeHpkRzl3SUc5bVpuTmxkRDBpTUNVaUlITjBlV3hsUFNKemRHOXdMV052Ykc5eU9pSWpOalEzWldWaE8zTjBiM0F0YjNCaFkybDBlVG94SWlBdlBqeHpkRzl3SUc5bVpuTmxkRDBpTVRBd0pTSWdjM1I1YkdVOUluTjBiM0F0WTI5c2IzSTZJaU0zTmpSaVlUSTdjM1J2Y0MxdmNHRmphWFI1T2pFaUlDOCtQQzlzYVc1bFlYSkhjbUZrYVdWdWRENDhMMlJsWm5NK1BISmxZM1FnZDJsa2RHZzlJalV4TWlJZ2FHVnBaMmgwUFNJMU1USWlJR1pwYkd3OUluVnliQ2hoV1ZweVJHNW9iMGdpSUhKNFBTSTJOQ0l2UGp4MFpYaDBJSGc5SWpJMU5pSWdlVDBpTVRrNElpQm1iMjUwTFdaaGJXbHNlVDBpUVhKcFlXd2lJR1p2Ym5RdGMybDZaVDBpT0RBaUlHWnBiR3c5SW5kb2FYUmxJaUIwWlhoMExXRnVZMmh2Y2owaWJXbGtaR3hsUGo1bUp6d3ZkR1Y0ZEQ0OGRHVjRkQ0I0UFNJMU1qRWlJSGs5SWpNME1DSWdabTl1ZEMxbVlXMXBiSGs5SWtGeWFXRnNJaUJtYjI1MExYTnBlbVU5SWpRNElpQm1hV3hzUFNKM2FHbDBaU0lnYjNCaFkybDBlVDBpTUM0NUlpQjBaWGgwTFdGdVkyaHZjajBpYldsa1pHeGxJajVVWVhsc2IzSThMM1JsZUhRK1BDOXpkbWMrIiwKICAgICAgInNpemVzIjogIjUxMng1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInB1cnBvc2UiOiAiYW55IgogICAgfQogIF0sCiAgInNjcmVlbnNob3RzIjogWwogICAgewogICAgICAic3JjIjogImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEhOMlp5QjNhV1IwYUQwaU16SXdJaUJvWldsbmFIUTlJalUyT0NJZ2RtbGxkMEp2ZUQwaU1DQXdJRE15TUNBMU5qZ2lJR1pwYkd3OUltNXZibVVpSUhodGJHNXpQU0pvZEhSd09pOHZkM2QzTG5jekxtOXlaeTh5TURBd0wzTjJaeUkrUEhKbFkzUWdkMmxrZEdnOUlqTXlNQ0lnYUdWcFoyaDBQU0kxTmpnaUlHWnBiR3c5SWlObU5HWTBaalFpTHo0OGRHVjRkQ0I0UFNJMU1qRWlJSGs5SWpFd01DSWdabTl1ZEMxbVlXMXBiSGs5SWtGeWFXRnNJaUJtYjI1MExYTnBlbVU5SWpFNElpQm1hV3hzUFNJak16TXpJaUIwWlhoMExXRnVZMmh2Y2owaWJXbGtaR3hsUGo1RFlXeGpkV3hoWkc5eVlTQmtaU0JVWVN0eWJHOXlQQzkwWlhoMFBqd3ZjM1puUGc9PSIsCiAgICAgICJzaXplcyI6ICIzMjB4NTY4IiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIsCiAgICAgICJmb3JtX2ZhY3RvciI6ICJuYXJyb3ciLAogICAgICAibGFiZWwiOiAiVmlzdGEgbcOzdmlsIGRlIGxhIGNhbGN1bGFkb3JhIgogICAgfQogIF0sCiAgInNob3J0Y3V0cyI6IFsKICAgIHsKICAgICAgIm5hbWUiOiAiRnVuY2nDs24gc2VubyIsCiAgICAgICJzaG9ydF9uYW1lIjogInNpbih4KSIsCiAgICAgICJkZXNjcmlwdGlvbiI6ICJMaW5lYWxpemFyIGZ1bmNpw7NuIHNlbm8iLAogICAgICAidXJsIjogIi8/ZnVuYz1zaW4oeCkmeDQ9MCIKICAgIH0sCiAgICB7CiAgICAgICJuYW1lIjogIkZ1bmNpw7NuIGN1YWRyw6F0aWNhIiwKICAgICAgInNob3J0X25hbWUiOiAieMKyIiwKICAgICAgImRlc2NyaXB0aW9uIjogIkxpbmVhbGl6YXIgZnVuY2nDs24gY3VhZHLDoXRpY2EiLAogICAgICAidXJsIjogIi8/ZnVuYz14XjImeDA9MSIKICAgIH0KICBdCn0=">
+  <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkNhbGN1bGFkb3JhIGRlIExpbmVhbGl6YWNpw7NuIFRheWxvciAtIFVuaXZlcnNpZGFkIiwKICAic2hvcnRfbmFtZSI6ICJUYXlsb3IgQ2FsYyIsCiAgImRlc2NyaXB0aW9uIjogIkhlcnJhbWllbnRhIGFjYWTDqW1pY2EgcGFyYSBjYWxjdWxhciB5IHZpc3VhbGl6YXIgbGEgbGluZWFsaXphY2nDs24gZGUgZnVuY2lvbmVzIiwKICAidmVyc2lvbiI6ICIyLjEuMCIsCiAgInN0YXJ0X3VybCI6ICIvIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMWUzYThhIiwKICAidGhlbWVfY29sb3IiOiAiIzNiODJmNiIsCiAgIm9yaWVudGF0aW9uIjogInBvcnRyYWl0LXByaW1hcnkiLAogICJjYXRlZ29yaWVzIjogWyJlZHVjYXRpb24iLCAidXRpbGl0aWVzIiwgInByb2R1Y3Rpdml0eSJdLAogICJsYW5nIjogImVzIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCM2FXUjBhRDBpTVRreUlpQm9aV2xuYUhROUlqRTVNaUlpSUhacFpYZENiM2c5SWpBZ01DQXhPVElnTVRreUlpQm1hV3hzUFNKdWIyNWxJaUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lQangwWlhoMElIZzlJalk0SWlCNVBTSTNPQ0lnWm05dWRDMW1ZVzFwYkhrOUlrRnlhV0ZzSUVKc1lXTnJJaUJtYjI1MExYTnBlbVU5SWpNNElpQm1hV3hzUFNJak1XVTBNR0U0WVNJZ2RHVjRkQzFoYm1Ob2IzSTlJbTFwWkdSc1pTSStRMkZzWTNWc1lXUnZjbUVnZEdGNWJHOXlQQzkwWlhoMFBqeDBaWGgwSUhnOUlqWTRJaUI1UFNJeE1EUWlJR1p2Ym5RdFptRnRhV3g1UFNKQmNtbGhiQ0lnWm05dWRDMXphWHBsUFNJeE5DSWdabWxzYkQwaUkzZG9hWFJsSWlCdmNHRmphWFI1UFNJd0xqa2lJSFJsZUhRdFlXNWphRzl5UFNKdGFXUmtiR1VpUGxWdWFYWmxjbk5wWkdGa1BDOTBaWGgwUGp3dmMzWm5QZz09IiwKICAgICAgInNpemVzIjogIjE5MngxOTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwKICAgICAgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIgogICAgfQogIF0KfQ==">
   
   <!-- Scripts externos -->
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -26,15 +824,46 @@
     }
 
     :root {
-      --primary: #667eea;
-      --secondary: #764ba2;
-      --success: #28a745;
-      --warning: #ffc107;
-      --danger: #dc3545;
-      --info: #17a2b8;
-      --light: #f8f9fa;
-      --dark: #212529;
-      --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      /* Colores oficiales INACAP */
+      --primary: #0066cc;
+      --secondary: #004499;
+      --accent: #ff6600;
+      --success: #059669;
+      --warning: #f59e0b;
+      --danger: #dc2626;
+      --info: #06b6d4;
+      --light: #f8fafc;
+      --dark: #0f172a;
+      --inacap-blue: #0066cc;
+      --inacap-orange: #ff6600;
+      --inacap-dark-blue: #004499;
+      --gradient: linear-gradient(135deg, var(--inacap-blue) 0%, var(--inacap-dark-blue) 100%);
+      --gradient-accent: linear-gradient(45deg, var(--inacap-orange), #ff8533);
+    }
+
+    /* Temas de color alternativos */
+    .theme-inacap {
+      --primary: #0066cc;
+      --secondary: #004499;
+      --accent: #ff6600;
+    }
+
+    .theme-green {
+      --primary: #059669;
+      --secondary: #10b981;
+      --accent: #f59e0b;
+    }
+
+    .theme-purple {
+      --primary: #7c3aed;
+      --secondary: #a855f7;
+      --accent: #06b6d4;
+    }
+
+    .theme-red {
+      --primary: #dc2626;
+      --secondary: #ef4444;
+      --accent: #fbbf24;
     }
 
     body {
@@ -62,7 +891,6 @@
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
       border: 1px solid rgba(255, 255, 255, 0.2);
       position: relative;
-      transform: translateY(0);
       animation: slideIn 0.5s ease-out;
     }
 
@@ -109,6 +937,35 @@
       100% { transform: rotate(360deg); }
     }
 
+    .university-logo {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 10px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+
+    .university-logo img {
+      width: 45px;
+      height: 45px;
+      object-fit: contain;
+    }
+
+    .inacap-letters {
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-weight: 900;
+      font-size: 16px;
+      color: var(--inacap-blue);
+      letter-spacing: -1px;
+    }
+
     .header h1 {
       font-size: 1.6rem;
       margin-bottom: 8px;
@@ -124,40 +981,60 @@
       z-index: 1;
     }
 
-    .install-banner {
-      background: var(--success);
-      color: white;
-      padding: 12px;
-      border-radius: 10px;
+    .university-info {
+      font-size: 0.8rem;
+      opacity: 0.8;
+      margin-top: 5px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Theme selector */
+    .theme-selector {
       margin-bottom: 20px;
       text-align: center;
-      display: none;
-      animation: slideDown 0.3s ease;
     }
 
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .install-banner.show {
+    .theme-selector label {
       display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #555;
+      font-size: 0.9rem;
     }
 
-    .install-banner button {
-      background: rgba(255,255,255,0.2);
-      border: 1px solid rgba(255,255,255,0.3);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 6px;
-      margin: 0 5px;
+    .dark-mode .theme-selector label {
+      color: #ccc;
+    }
+
+    .theme-options {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .theme-option {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 3px solid transparent;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
     }
 
-    .install-banner button:hover {
-      background: rgba(255,255,255,0.3);
+    .theme-option.active {
+      border-color: var(--accent);
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
+
+    .theme-inacap { background: linear-gradient(45deg, #0066cc, #ff6600); }
+    .theme-green { background: linear-gradient(45deg, #059669, #10b981); }
+    .theme-purple { background: linear-gradient(45deg, #7c3aed, #a855f7); }
+    .theme-red { background: linear-gradient(45deg, #dc2626, #ef4444); }
 
     .form-group {
       margin-bottom: 20px;
@@ -189,14 +1066,13 @@
       transition: all 0.3s ease;
       background: #f8f9fa;
       -webkit-appearance: none;
-      -webkit-border-radius: 12px;
     }
 
     .form-group input:focus {
       outline: none;
       border-color: var(--primary);
       background: white;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
       transform: translateY(-1px);
     }
 
@@ -235,7 +1111,7 @@
       background: var(--primary);
       color: white;
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
 
     .dark-mode .example-btn {
@@ -262,25 +1138,6 @@
       letter-spacing: 0.5px;
       position: relative;
       overflow: hidden;
-      touch-action: manipulation;
-    }
-
-    .btn::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 0;
-      height: 0;
-      background: rgba(255,255,255,0.2);
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      transition: width 0.6s, height 0.6s;
-    }
-
-    .btn:active::before {
-      width: 300px;
-      height: 300px;
     }
 
     .btn-primary {
@@ -308,14 +1165,9 @@
       box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
     }
 
-    .btn:active {
-      transform: translateY(-1px);
-    }
-
     .btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
-      transform: none;
     }
 
     .result-section {
@@ -325,11 +1177,6 @@
       border-radius: 15px;
       border-left: 4px solid var(--primary);
       animation: fadeIn 0.5s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     .dark-mode .result-section {
@@ -352,7 +1199,7 @@
     }
 
     .result-content {
-      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
       background: white;
       padding: 16px;
       border-radius: 10px;
@@ -360,7 +1207,6 @@
       font-size: 0.9rem;
       line-height: 1.5;
       border: 1px solid #e1e5e9;
-      overflow-x: auto;
     }
 
     .dark-mode .result-content {
@@ -386,16 +1232,11 @@
       display: none;
       text-align: center;
       padding: 30px;
-      animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
     }
 
     .loading.active {
       display: block;
+      animation: pulse 1.5s infinite;
     }
 
     .spinner {
@@ -413,229 +1254,110 @@
       100% { transform: rotate(360deg); }
     }
 
-    .error {
-      background: linear-gradient(45deg, #f8d7da, #f1c2c3);
-      color: #721c24;
-      padding: 16px;
-      border-radius: 10px;
-      border-left: 4px solid var(--danger);
-      margin-top: 15px;
-      animation: shake 0.5s ease;
-    }
-
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-5px); }
-      75% { transform: translateX(5px); }
-    }
-
-    .dark-mode .error {
-      background: linear-gradient(45deg, #2d1b1b, #3d2020);
-      color: #f5c6cb;
-      border-left-color: var(--danger);
-    }
-
-    .success {
-      background: linear-gradient(45deg, #d4edda, #c3e6cb);
-      color: #155724;
-      padding: 16px;
-      border-radius: 10px;
-      border-left: 4px solid var(--success);
-      margin-top: 15px;
-      animation: slideIn 0.3s ease;
-    }
-
-    .dark-mode .success {
-      background: linear-gradient(45deg, #1b2d1b, #203d20);
-      color: #c3e6cb;
-    }
-
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 60px;
-      height: 34px;
-      margin-left: 10px;
-    }
-
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: 0.4s;
-      border-radius: 34px;
-    }
-
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 26px;
-      width: 26px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: 0.4s;
-      border-radius: 50%;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-
-    input:checked + .slider {
-      background-color: var(--primary);
-    }
-
-    input:checked + .slider:before {
-      transform: translateX(26px);
-    }
-
-    .dark-mode-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-top: 25px;
-      padding: 15px;
+    .advanced-options {
       background: rgba(255,255,255,0.1);
       border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
       backdrop-filter: blur(10px);
     }
 
-    .update-notification {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      background: var(--gradient);
+    .advanced-toggle {
+      background: none;
+      border: none;
       color: white;
-      padding: 16px 20px;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .advanced-content {
+      margin-top: 15px;
+      display: none;
+    }
+
+    .advanced-content.show {
+      display: block;
       animation: slideDown 0.3s ease;
     }
 
-    .offline-indicator {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      background: var(--warning);
-      color: #212529;
-      padding: 10px 15px;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      display: none;
-      z-index: 1000;
-      animation: slideIn 0.3s ease;
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    .offline-indicator.show {
-      display: block;
+    .precision-slider {
+      margin: 15px 0;
     }
 
-    .install-prompt {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: white;
-      padding: 20px;
-      box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
-      display: none;
-      z-index: 1001;
-      animation: slideUp 0.3s ease;
+    .precision-slider input[type="range"] {
+      width: 100%;
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.3);
+      outline: none;
     }
 
-    @keyframes slideUp {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
+    .precision-slider input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
     }
 
-    .install-prompt.show {
-      display: block;
-    }
-
-    .dark-mode .install-prompt {
-      background: #2a2a2a;
-      color: #f4f4f4;
-    }
-
-    .share-menu {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: white;
-      border-radius: 20px 20px 0 0;
-      padding: 20px;
-      transform: translateY(100%);
-      transition: transform 0.3s ease;
-      z-index: 1002;
-      box-shadow: 0 -8px 32px rgba(0,0,0,0.2);
-    }
-
-    .share-menu.show {
-      transform: translateY(0);
-    }
-
-    .dark-mode .share-menu {
-      background: #2a2a2a;
-      color: #f4f4f4;
-    }
-
-    .share-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.5);
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.3s ease;
-      z-index: 1001;
-    }
-
-    .share-overlay.show {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .share-options {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-      gap: 15px;
-      margin-top: 15px;
-    }
-
-    .share-option {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 15px;
-      background: #f8f9fa;
+    .statistics-panel {
+      background: var(--gradient-accent);
+      color: #333;
       border-radius: 12px;
+      padding: 15px;
+      margin-top: 20px;
+      display: none;
+    }
+
+    .statistics-panel.show {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+
+    .export-options {
+      display: flex;
+      gap: 8px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+
+    .export-btn {
+      flex: 1;
+      min-width: 100px;
+      padding: 10px;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 8px;
+      color: white;
       cursor: pointer;
       transition: all 0.2s ease;
-      text-decoration: none;
-      color: inherit;
+      font-size: 0.85rem;
     }
 
-    .share-option:hover {
-      background: var(--primary);
-      color: white;
-      transform: translateY(-2px);
-    }
-
-    .dark-mode .share-option {
-      background: #404040;
+    .export-btn:hover {
+      background: rgba(255,255,255,0.3);
+      transform: translateY(-1px);
     }
 
     /* Responsive Design */
@@ -649,88 +1371,77 @@
         flex-direction: column;
       }
 
-      .function-examples {
-        justify-content: center;
+      .theme-options {
+        gap: 8px;
       }
 
-      .header h1 {
-        font-size: 1.4rem;
+      .theme-option {
+        width: 35px;
+        height: 35px;
       }
 
-      .btn {
-        padding: 14px;
-        font-size: 0.9rem;
+      .export-options {
+        flex-direction: column;
       }
     }
 
-    @media (max-height: 600px) {
-      .header {
-        padding: 12px;
-        margin-bottom: 15px;
-      }
-
-      .form-group {
-        margin-bottom: 15px;
-      }
-
-      .container {
-        padding: 15px;
-      }
-    }
-
-    /* PWA específico */
-    @media (display-mode: standalone) {
-      .header {
-        padding-top: 25px;
-      }
-      
-      .install-banner {
-        display: none !important;
-      }
-    }
-
-    /* Landscape mobile */
     @media (orientation: landscape) and (max-height: 500px) {
       .header {
         padding: 10px;
         margin-bottom: 10px;
       }
       
-      .form-group {
-        margin-bottom: 12px;
+      .university-logo {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
       }
     }
   </style>
 </head>
 <body>
-  <!-- Indicador offline -->
-  <div class="offline-indicator" id="offlineIndicator">
-    📡 Sin conexión - Funcionando offline
-  </div>
-
-  <!-- Notificación de actualización -->
-  <div class="update-notification" id="updateNotification" style="display: none;">
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <span>🆕 Nueva versión disponible</span>
-      <button onclick="updateApp()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer;">Actualizar</button>
-      <button onclick="closeUpdateNotification()" style="background: transparent; border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer;">Después</button>
-    </div>
-  </div>
-
   <div class="container">
-    <!-- Banner de instalación -->
-    <div class="install-banner" id="installBanner">
-      <div style="margin-bottom: 10px;">
-        <strong>📱 ¡Instala la app!</strong><br>
-        <small>Úsala offline y accede más rápido</small>
+    <div class="header">
+      <div class="university-logo" id="universityLogo">
+        <div class="inacap-letters">INACAP</div>
       </div>
-      <button onclick="installApp()">Instalar</button>
-      <button onclick="dismissInstall()">Ahora no</button>
+      <h1>Calculadora Taylor</h1>
+      <p>Linealización de funciones matemáticas</p>
+      <div class="university-info" id="universityInfo">
+        INACAP - Instituto Nacional de Capacitación Profesional
+      </div>
     </div>
 
-    <div class="header">
-      <h1>📊 Calculadora Taylor</h1>
-      <p>Linealización de funciones matemáticas</p>
+    <!-- Selector de tema -->
+    <div class="theme-selector">
+      <label>🎨 Personalizar colores:</label>
+      <div class="theme-options">
+        <div class="theme-option theme-inacap active" onclick="changeTheme('inacap')" title="Colores INACAP Oficiales"></div>
+        <div class="theme-option theme-green" onclick="changeTheme('green')" title="Verde Tecnológico"></div>
+        <div class="theme-option theme-purple" onclick="changeTheme('purple')" title="Púrpura Moderno"></div>
+        <div class="theme-option theme-red" onclick="changeTheme('red')" title="Rojo Universitario"></div>
+      </div>
+    </div>
+
+    <!-- Opciones avanzadas -->
+    <div class="advanced-options">
+      <button class="advanced-toggle" onclick="toggleAdvanced()">
+        <span>⚙️ Opciones Avanzadas</span>
+        <span id="advancedArrow">▼</span>
+      </button>
+      <div class="advanced-content" id="advancedContent">
+        <div class="precision-slider">
+          <label style="color: white; font-size: 0.85rem;">Precisión del cálculo:</label>
+          <input type="range" id="precisionSlider" min="1" max="10" value="5" oninput="updatePrecision(this.value)">
+          <div style="color: rgba(255,255,255,0.8); font-size: 0.8rem; text-align: center;">
+            <span id="precisionValue">Estándar</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button class="export-btn" onclick="toggleStatistics()">📊 Estadísticas</button>
+          <button class="export-btn" onclick="resetAll()">🔄 Reiniciar</button>
+        </div>
+      </div>
     </div>
 
     <form id="calculatorForm">
@@ -746,6 +1457,8 @@
           <button type="button" class="example-btn" onclick="setFunction('exp(x)')">eˣ</button>
           <button type="button" class="example-btn" onclick="setFunction('log(x)')">ln(x)</button>
           <button type="button" class="example-btn" onclick="setFunction('sqrt(x)')">√x</button>
+          <button type="button" class="example-btn" onclick="setFunction('tan(x)')">tan(x)</button>
+          <button type="button" class="example-btn" onclick="setFunction('1/x')">1/x</button>
         </div>
       </div>
 
@@ -756,12 +1469,12 @@
 
       <div class="form-group">
         <label for="unidadX">📏 Unidad de x (opcional):</label>
-        <input type="text" id="unidadX" placeholder="Ej: s, m, °" autocomplete="off">
+        <input type="text" id="unidadX" placeholder="Ej: s, m, °, rad" autocomplete="off">
       </div>
 
       <div class="form-group">
         <label for="unidadY">📐 Unidad de f(x) (opcional):</label>
-        <input type="text" id="unidadY" placeholder="Ej: m, kg, V" autocomplete="off">
+        <input type="text" id="unidadY" placeholder="Ej: m, kg, V, N" autocomplete="off">
       </div>
 
       <div class="btn-group">
@@ -777,6 +1490,31 @@
     <div class="loading" id="loading">
       <div class="spinner"></div>
       <p>Calculando linealización...</p>
+    </div>
+
+    <!-- Panel de estadísticas -->
+    <div class="statistics-panel" id="statisticsPanel">
+      <h3 style="margin-bottom: 15px;">📊 Estadísticas del Cálculo</h3>
+      <div class="stat-item">
+        <span>Tipo de función:</span>
+        <span id="statFunctionType">-</span>
+      </div>
+      <div class="stat-item">
+        <span>Comportamiento:</span>
+        <span id="statBehavior">-</span>
+      </div>
+      <div class="stat-item">
+        <span>Curvatura:</span>
+        <span id="statCurvature">-</span>
+      </div>
+      <div class="stat-item">
+        <span>Precisión estimada:</span>
+        <span id="statPrecision">-</span>
+      </div>
+      <div class="stat-item">
+        <span>Tiempo de cálculo:</span>
+        <span id="statTime">-</span>
+      </div>
     </div>
 
     <div id="resultado" style="display: none;">
@@ -796,924 +1534,6 @@
         <div class="result-content" id="interpretacionContent"></div>
       </div>
 
-      <div class="btn-group">
-        <button class="btn btn-success" onclick="descargarGrafico()">
-          <span>📥 Descargar</span>
-        </button>
-        <button class="btn btn-warning" onclick="openShareMenu()">
-          <span>🔗 Compartir</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="graph-container" id="graficoContainer" style="display: none;">
-      <div id="grafico"></div>
-    </div>
-
-    <div class="dark-mode-toggle">
-      <span>🌙 Modo oscuro</span>
-      <label class="toggle-switch">
-        <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()">
-        <span class="slider"></span>
-      </label>
-    </div>
-  </div>
-
-  <!-- Overlay para compartir -->
-  <div class="share-overlay" id="shareOverlay" onclick="closeShareMenu()"></div>
-  
-  <!-- Menú de compartir -->
-  <div class="share-menu" id="shareMenu">
-    <h3 style="margin-bottom: 10px;">Compartir Resultado</h3>
-    <p style="color: #666; font-size: 0.9rem;">Comparte tu cálculo de linealización</p>
-    
-    <div class="share-options">
-      <div class="share-option" onclick="shareViaWhatsApp()">
-        <div style="font-size: 24px;">💬</div>
-        <small>WhatsApp</small>
-      </div>
-      <div class="share-option" onclick="shareViaEmail()">
-        <div style="font-size: 24px;">📧</div>
-        <small>Email</small>
-      </div>
-      <div class="share-option" onclick="copyToClipboard()">
-        <div style="font-size: 24px;">📋</div>
-        <small>Copiar</small>
-      </div>
-      <div class="share-option" onclick="shareViaNative()">
-        <div style="font-size: 24px;">📤</div>
-        <small>Más opciones</small>
-      </div>
-    </div>
-    
-    <button class="btn btn-secondary" onclick="closeShareMenu()" style="width: 100%; margin-top: 15px;">
-      Cerrar
-    </button>
-  </div>
-
-  <!-- Prompt de instalación personalizado -->
-  <div class="install-prompt" id="installPrompt">
-    <h3>📱 Instalar Calculadora Taylor</h3>
-    <p>Instala esta app para usarla offline y acceder más rápido desde tu pantalla de inicio.</p>
-    <div style="display: flex; gap: 10px; margin-top: 15px;">
-      <button class="btn btn-primary" onclick="installApp()" style="flex: 1;">Instalar</button>
-      <button class="btn btn-secondary" onclick="dismissInstall()" style="flex: 1;">Ahora no</button>
-    </div>
-  </div>
-
-  <script>
-    // Variables globales
-    let currentPlot = null;
-    let calculationResult = null;
-    let deferredPrompt = null;
-    let swRegistration = null;
-
-    // Service Worker Registration
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register(createServiceWorker())
-        .then(function(registration) {
-          console.log('SW registrado:', registration.scope);
-          swRegistration = registration;
-          
-          // Verificar actualizaciones
-          registration.addEventListener('updatefound', function() {
-            const newWorker = registration.installing;
-            newWorker.addEventListener('statechange', function() {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                showUpdateNotification();
-              }
-            });
-          });
-        })
-        .catch(function(error) {
-          console.log('Error SW:', error);
-        });
-    }
-
-    // Función para crear Service Worker inline
-    function createServiceWorker() {
-      const swCode = `
-        const CACHE_NAME = 'taylor-calc-v2.0.0';
-        const urlsToCache = [
-          '/',
-          'https://cdn.plot.ly/plotly-latest.min.js',
-          'https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js'
-        ];
-
-        self.addEventListener('install', function(event) {
-          event.waitUntil(
-            caches.open(CACHE_NAME)
-              .then(function(cache) {
-                return cache.addAll(urlsToCache);
-              })
-          );
-        });
-
-        self.addEventListener('activate', function(event) {
-          event.waitUntil(
-            caches.keys().then(function(cacheNames) {
-              return Promise.all(
-                cacheNames.map(function(cacheName) {
-                  if (cacheName !== CACHE_NAME) {
-                    return caches.delete(cacheName);
-                  }
-                })
-              );
-            })
-          );
-        });
-
-        self.addEventListener('fetch', function(event) {
-          event.respondWith(
-            fetch(event.request)
-              .then(function(response) {
-                if (response.status === 200 && response.type === 'basic') {
-                  const responseClone = response.clone();
-                  caches.open(CACHE_NAME)
-                    .then(function(cache) {
-                      cache.put(event.request, responseClone);
-                    });
-                }
-                return response;
-              })
-              .catch(function() {
-                return caches.match(event.request);
-              })
-          );
-        });
-
-        self.addEventListener('message', function(event) {
-          if (event.data && event.data.type === 'SKIP_WAITING') {
-            self.skipWaiting();
-          }
-        });
-      `;
-      
-      const blob = new Blob([swCode], { type: 'application/javascript' });
-      return URL.createObjectURL(blob);
-    }
-
-    // Configuración inicial PWA
-    document.addEventListener('DOMContentLoaded', function() {
-      // Cargar preferencias
-      const darkMode = localStorage.getItem('darkMode') === 'true';
-      if (darkMode) {
-        document.body.classList.add('dark-mode');
-        document.getElementById('darkModeToggle').checked = true;
-      }
-
-      // Configurar Plotly para móvil
-      if (window.innerWidth < 768) {
-        Plotly.setPlotConfig({
-          responsive: true,
-          displayModeBar: false
-        });
-      }
-
-      // Manejar parámetros URL
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('func')) {
-        document.getElementById('funcion').value = urlParams.get('func');
-      }
-      if (urlParams.get('x0')) {
-        document.getElementById('x0').value = urlParams.get('x0');
-      }
-
-      // Auto-calcular si hay parámetros
-      if (urlParams.get('func') && urlParams.get('x0')) {
-        setTimeout(calcular, 500);
-      }
-
-      // Verificar si ya está instalado
-      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
-        console.log('App ya instalada');
-      } else {
-        // Mostrar banner de instalación después de 3 segundos
-        setTimeout(() => {
-          if (!localStorage.getItem('installPromptDismissed')) {
-            document.getElementById('installBanner').classList.add('show');
-          }
-        }, 3000);
-      }
-    });
-
-    // Manejo de instalación PWA
-    window.addEventListener('beforeinstallprompt', function(e) {
-      e.preventDefault();
-      deferredPrompt = e;
-      
-      // Mostrar prompt personalizado después de 5 segundos
-      setTimeout(() => {
-        if (!localStorage.getItem('installPromptDismissed')) {
-          document.getElementById('installPrompt').classList.add('show');
-        }
-      }, 5000);
-    });
-
-    // Detectar conexión offline/online
-    window.addEventListener('offline', function() {
-      document.getElementById('offlineIndicator').classList.add('show');
-    });
-
-    window.addEventListener('online', function() {
-      document.getElementById('offlineIndicator').classList.remove('show');
-    });
-
-    // Función principal de cálculo
-    document.getElementById('calculatorForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      calcular();
-    });
-
-    function calcular() {
-      const loadingEl = document.getElementById('loading');
-      const resultadoEl = document.getElementById('resultado');
-      const graficoContainer = document.getElementById('graficoContainer');
-      const calculateBtn = document.getElementById('calculateBtn');
-      
-      // Deshabilitar botón y mostrar loading
-      calculateBtn.disabled = true;
-      loadingEl.classList.add('active');
-      resultadoEl.style.display = 'none';
-      graficoContainer.style.display = 'none';
-      clearMessages();
-
-      try {
-        const expr = document.getElementById('funcion').value.trim();
-        const x0Input = document.getElementById('x0').value.trim();
-        const unidadX = document.getElementById('unidadX').value.trim() || 'x';
-        const unidadY = document.getElementById('unidadY').value.trim() || 'f(x)';
-
-        // Validación de entrada
-        if (!expr) {
-          throw new Error('Por favor ingresa una función');
-        }
-
-        if (!x0Input) {
-          throw new Error('Por favor ingresa el valor de x₀');
-        }
-
-        // Evaluar x0 (puede ser una expresión como π/2)
-        let x0;
-        try {
-          x0 = math.evaluate(x0Input);
-        } catch (error) {
-          x0 = parseFloat(x0Input);
-          if (isNaN(x0)) {
-            throw new Error('El valor de x₀ no es válido. Usa números o expresiones como π/2');
-          }
-        }
-
-        // Compilar función
-        const f = math.compile(expr);
-        
-        // Verificar que la función sea válida en x0
-        const testValue = f.evaluate({ x: x0 });
-        if (!isFinite(testValue)) {
-          throw new Error(`La función no está definida en x₀ = ${formatNumber(x0)}`);
-        }
-
-        // Calcular derivada numérica con mejor precisión
-        const h = Math.max(1e-8, Math.abs(x0) * 1e-8);
-        const f0 = f.evaluate({ x: x0 });
-        
-        let fp;
-        try {
-          // Método de diferencias centradas
-          const f_plus = f.evaluate({ x: x0 + h });
-          const f_minus = f.evaluate({ x: x0 - h });
-          fp = (f_plus - f_minus) / (2 * h);
-          
-          if (!isFinite(fp)) {
-            // Fallback a diferencia hacia adelante
-            const f_forward = f.evaluate({ x: x0 + h });
-            fp = (f_forward - f0) / h;
-          }
-        } catch (error) {
-          // Último recurso: diferencia hacia adelante
-          const f_forward = f.evaluate({ x: x0 + h });
-          fp = (f_forward - f0) / h;
-        }
-
-        // Calcular ecuación de la recta tangente
-        const m = fp;
-        const b = f0 - m * x0;
-
-        // Verificar resultados válidos
-        if (!isFinite(m) || !isFinite(b)) {
-          throw new Error('No se pudo calcular la derivada en este punto');
-        }
-
-        // Almacenar resultado
-        calculationResult = {
-          expr, x0, unidadX, unidadY, f, f0, fp, m, b
-        };
-
-        // Generar resultado textual
-        const resultado = `📌 Ecuación lineal: y = ${formatNumber(m)}x + ${formatNumber(b)}\n\n` +
-                         `📍 Punto de evaluación:\n   f(${formatNumber(x0)}) = ${formatNumber(f0)}\n\n` +
-                         `📈 Pendiente (derivada):\n   f'(${formatNumber(x0)}) ≈ ${formatNumber(fp)}\n\n` +
-                         `📏 Unidades: [${unidadY}] por [${unidadX}]\n\n` +
-                         `✅ Aproximación válida cerca de x₀ = ${formatNumber(x0)}`;
-
-        // Generar interpretación
-        let interpretacion = '';
-        const absDerivative = Math.abs(fp);
-        
-        if (absDerivative < 1e-6) {
-          interpretacion = `🔄 Punto crítico detectado\n\n`;
-          interpretacion += `La función tiene un punto crítico en x = ${formatNumber(x0)}.\n`;
-          interpretacion += `La recta tangente es aproximadamente horizontal (pendiente ≈ 0).\n`;
-          interpretacion += `Este podría ser un máximo, mínimo o punto de inflexión.`;
-        } else if (fp > 0) {
-          interpretacion = `📈 Función creciente\n\n`;
-          interpretacion += `La función está creciendo en x = ${formatNumber(x0)}.\n`;
-          interpretacion += `Por cada unidad que aumenta x, f(x) aumenta aproximadamente ${formatNumber(absDerivative)} unidades.\n`;
-          interpretacion += `La pendiente positiva indica crecimiento local.`;
-        } else {
-          interpretacion = `📉 Función decreciente\n\n`;
-          interpretacion += `La función está decreciendo en x = ${formatNumber(x0)}.\n`;
-          interpretacion += `Por cada unidad que aumenta x, f(x) disminuye aproximadamente ${formatNumber(absDerivative)} unidades.\n`;
-          interpretacion += `La pendiente negativa indica decrecimiento local.`;
-        }
-
-        // Agregar información sobre la calidad de la aproximación
-        interpretacion += `\n\n💡 La aproximación lineal es más precisa cerca del punto x₀.`;
-
-        // Mostrar resultados
-        document.getElementById('resultadoContent').textContent = resultado;
-        document.getElementById('interpretacionContent').textContent = interpretacion;
-
-        // Generar gráfico
-        setTimeout(() => {
-          generarGrafico();
-          
-          // Mostrar resultados con animación
-          loadingEl.classList.remove('active');
-          resultadoEl.style.display = 'block';
-          graficoContainer.style.display = 'block';
-          calculateBtn.disabled = false;
-          
-          // Scroll suave al resultado
-          resultadoEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          
-          // Mostrar mensaje de éxito
-          showSuccess('✅ Cálculo completado exitosamente');
-        }, 800);
-
-      } catch (error) {
-        loadingEl.classList.remove('active');
-        calculateBtn.disabled = false;
-        showError(error.message);
-      }
-    }
-
-    function generarGrafico() {
-      const { expr, x0, unidadX, unidadY, f, m, b } = calculationResult;
-      
-      // Determinar rango inteligente del gráfico
-      let range = Math.max(2, Math.abs(x0) * 0.8);
-      
-      // Ajustar rango según la función
-      if (expr.includes('log') && x0 <= range) {
-        range = Math.max(x0 + 2, 3);
-      }
-      
-      const xMin = x0 - range;
-      const xMax = x0 + range;
-      const step = (xMax - xMin) / 200;
-
-      const xVals = [];
-      const yVals = [];
-      const yTangente = [];
-
-      // Generar puntos de la función y tangente
-      for (let x = xMin; x <= xMax; x += step) {
-        try {
-          const y = f.evaluate({ x });
-          if (isFinite(y)) {
-            xVals.push(x);
-            yVals.push(y);
-            yTangente.push(m * x + b);
-          }
-        } catch (error) {
-          // Omitir puntos problemáticos
-        }
-      }
-
-      // Configurar trazas
-      const trace1 = {
-        x: xVals,
-        y: yVals,
-        type: 'scatter',
-        mode: 'lines',
-        name: `f(x) = ${expr}`,
-        line: { color: '#667eea', width: 3 }
-      };
-
-      const trace2 = {
-        x: xVals,
-        y: yTangente,
-        type: 'scatter',
-        mode: 'lines',
-        name: `Linealización`,
-        line: { dash: 'dash', color: '#e74c3c', width: 2 }
-      };
-
-      // Punto de tangencia
-      const trace3 = {
-        x: [x0],
-        y: [calculationResult.f0],
-        type: 'scatter',
-        mode: 'markers',
-        name: `Punto (${formatNumber(x0)}, ${formatNumber(calculationResult.f0)})`,
-        marker: { 
-          size: 12, 
-          color: '#f39c12',
-          line: { width: 2, color: 'white' }
-        }
-      };
-
-      // Configurar layout responsivo
-      const layout = {
-        title: {
-          text: `Linealización de f(x) = ${expr}`,
-          font: { size: window.innerWidth < 768 ? 14 : 16 }
-        },
-        xaxis: { 
-          title: `x (${unidadX})`,
-          showgrid: true,
-          gridcolor: document.body.classList.contains('dark-mode') ? '#404040' : '#e1e5e9'
-        },
-        yaxis: { 
-          title: `f(x) (${unidadY})`,
-          showgrid: true,
-          gridcolor: document.body.classList.contains('dark-mode') ? '#404040' : '#e1e5e9'
-        },
-        legend: { 
-          orientation: 'h',
-          y: -0.15,
-          font: { size: window.innerWidth < 768 ? 10 : 12 }
-        },
-        margin: { l: 50, r: 20, t: 60, b: 90 },
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)',
-        responsive: true,
-        autosize: true
-      };
-
-      // Configurar opciones para móvil
-      const config = {
-        responsive: true,
-        displayModeBar: window.innerWidth > 768,
-        displaylogo: false,
-        modeBarButtonsToRemove: [
-          'pan2d', 'select2d', 'lasso2d', 'autoScale2d', 
-          'hoverClosestCartesian', 'hoverCompareCartesian',
-          'zoom2d', 'zoomIn2d', 'zoomOut2d'
-        ]
-      };
-
-      // Crear gráfico
-      Plotly.newPlot('grafico', [trace1, trace2, trace3], layout, config);
-      currentPlot = { data: [trace1, trace2, trace3], layout, config };
-    }
-
-    // Funciones auxiliares
-    function formatNumber(num) {
-      if (Math.abs(num) < 1e-10) return '0';
-      if (Math.abs(num) < 0.001 || Math.abs(num) > 10000) {
-        return num.toExponential(3);
-      }
-      return parseFloat(num.toFixed(6)).toString();
-    }
-
-    function setFunction(func) {
-      document.getElementById('funcion').value = func;
-      document.getElementById('funcion').focus();
-      
-      // Sugerir valores comunes de x0
-      const suggestions = {
-        'sin(x)': '0',
-        'cos(x)': '0',
-        'exp(x)': '0',
-        'log(x)': '1',
-        'sqrt(x)': '1',
-        'x^2': '1'
-      };
-      
-      if (suggestions[func] && !document.getElementById('x0').value) {
-        document.getElementById('x0').value = suggestions[func];
-      }
-    }
-
-    function clearForm() {
-      document.getElementById('calculatorForm').reset();
-      document.getElementById('resultado').style.display = 'none';
-      document.getElementById('graficoContainer').style.display = 'none';
-      clearMessages();
-      calculationResult = null;
-      currentPlot = null;
-    }
-
-    function showError(mensaje) {
-      const errorEl = document.createElement('div');
-      errorEl.className = 'error';
-      errorEl.innerHTML = `<strong>❌ Error:</strong> ${mensaje}`;
-      
-      const form = document.getElementById('calculatorForm');
-      form.appendChild(errorEl);
-      
-      // Scroll al error
-      errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      
-      // Eliminar después de 8 segundos
-      setTimeout(() => {
-        if (errorEl.parentNode) {
-          errorEl.parentNode.removeChild(errorEl);
-        }
-      }, 8000);
-    }
-
-    function showSuccess(mensaje) {
-      const successEl = document.createElement('div');
-      successEl.className = 'success';
-      successEl.innerHTML = `<strong>${mensaje}</strong>`;
-      
-      const form = document.getElementById('calculatorForm');
-      form.appendChild(successEl);
-      
-      // Eliminar después de 4 segundos
-      setTimeout(() => {
-        if (successEl.parentNode) {
-          successEl.parentNode.removeChild(successEl);
-        }
-      }, 4000);
-    }
-
-    function clearMessages() {
-      const errors = document.querySelectorAll('.error, .success');
-      errors.forEach(error => error.remove());
-    }
-
-    function descargarGrafico() {
-      if (!currentPlot) return;
-      
-      const filename = `linealizacion_${calculationResult.expr.replace(/[^a-zA-Z0-9]/g, '_')}_x0_${calculationResult.x0.toString().replace('.', '_')}`;
-      
-      Plotly.downloadImage('grafico', {
-        format: 'png',
-        width: 1200,
-        height: 800,
-        filename: filename
-      }).then(() => {
-        showSuccess('📥 Gráfico descargado exitosamente');
-      }).catch(() => {
-        showError('No se pudo descargar el gráfico');
-      });
-    }
-
-    // Funciones de compartir
-    function openShareMenu() {
-      if (!calculationResult) return;
-      
-      document.getElementById('shareOverlay').classList.add('show');
-      document.getElementById('shareMenu').classList.add('show');
-      document.body.style.overflow = 'hidden';
-    }
-
-    function closeShareMenu() {
-      document.getElementById('shareOverlay').classList.remove('show');
-      document.getElementById('shareMenu').classList.remove('show');
-      document.body.style.overflow = '';
-    }
-
-    function generateShareText() {
-      if (!calculationResult) return '';
-      
-      const { expr, x0, m, b, unidadX, unidadY } = calculationResult;
-      return `🧮 Linealización con Serie de Taylor\n\n` +
-             `📊 Función: f(x) = ${expr}\n` +
-             `📍 Punto: x₀ = ${formatNumber(x0)}\n` +
-             `📈 Ecuación lineal: y = ${formatNumber(m)}x + ${formatNumber(b)}\n` +
-             `📏 Unidades: [${unidadY}] por [${unidadX}]\n\n` +
-             `Calculado con Calculadora Taylor PWA`;
-    }
-
-    function shareViaWhatsApp() {
-      const text = encodeURIComponent(generateShareText());
-      const url = `https://wa.me/?text=${text}`;
-      window.open(url, '_blank');
-      closeShareMenu();
-    }
-
-    function shareViaEmail() {
-      const text = encodeURIComponent(generateShareText());
-      const subject = encodeURIComponent('Resultado de Linealización - Calculadora Taylor');
-      const url = `mailto:?subject=${subject}&body=${text}`;
-      window.open(url, '_blank');
-      closeShareMenu();
-    }
-
-    function copyToClipboard() {
-      const text = generateShareText();
-      
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => {
-          showSuccess('📋 Resultado copiado al portapapeles');
-          closeShareMenu();
-        }).catch(() => {
-          fallbackCopyToClipboard(text);
-        });
-      } else {
-        fallbackCopyToClipboard(text);
-      }
-    }
-
-    function fallbackCopyToClipboard(text) {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      
-      try {
-        document.execCommand('copy');
-        showSuccess('📋 Resultado copiado al portapapeles');
-        closeShareMenu();
-      } catch (err) {
-        showError('No se pudo copiar al portapapeles');
-      } finally {
-        document.body.removeChild(textArea);
-      }
-    }
-
-    function shareViaNative() {
-      if (navigator.share) {
-        navigator.share({
-          title: 'Resultado de Linealización - Calculadora Taylor',
-          text: generateShareText(),
-          url: window.location.href
-        }).then(() => {
-          closeShareMenu();
-        }).catch((error) => {
-          if (error.name !== 'AbortError') {
-            showError('No se pudo compartir');
-          }
-          closeShareMenu();
-        });
-      } else {
-        showError('Función de compartir no disponible en este dispositivo');
-        closeShareMenu();
-      }
-    }
-
-    // Funciones PWA
-    function installApp() {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') {
-            console.log('Usuario instaló la PWA');
-            showSuccess('🎉 ¡App instalada exitosamente!');
-          }
-          deferredPrompt = null;
-          dismissInstall();
-        });
-      } else {
-        // Instrucciones manuales para diferentes navegadores
-        let instructions = '';
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const isAndroid = /Android/.test(navigator.userAgent);
-        
-        if (isIOS) {
-          instructions = 'En Safari: toca el botón "Compartir" y selecciona "Añadir a pantalla de inicio"';
-        } else if (isAndroid) {
-          instructions = 'En Chrome: toca el menú (⋮) y selecciona "Añadir a pantalla de inicio"';
-        } else {
-          instructions = 'En tu navegador: busca la opción "Instalar app" o "Añadir a pantalla de inicio"';
-        }
-        
-        alert(`📱 Para instalar esta app:\n\n${instructions}`);
-        dismissInstall();
-      }
-    }
-
-    function dismissInstall() {
-      document.getElementById('installBanner').classList.remove('show');
-      document.getElementById('installPrompt').classList.remove('show');
-      localStorage.setItem('installPromptDismissed', 'true');
-    }
-
-    function showUpdateNotification() {
-      document.getElementById('updateNotification').style.display = 'block';
-    }
-
-    function closeUpdateNotification() {
-      document.getElementById('updateNotification').style.display = 'none';
-    }
-
-    function updateApp() {
-      if (swRegistration && swRegistration.waiting) {
-        swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        window.location.reload();
-      }
-    }
-
-    function toggleDarkMode() {
-      const isDark = document.body.classList.toggle('dark-mode');
-      localStorage.setItem('darkMode', isDark);
-      
-      // Actualizar gráfico si existe
-      if (currentPlot) {
-        const bgColor = isDark ? '#2a2a2a' : 'rgba(0,0,0,0)';
-        const gridColor = isDark ? '#404040' : '#e1e5e9';
-        
-        Plotly.update('grafico', {}, {
-          paper_bgcolor: bgColor,
-          plot_bgcolor: bgColor,
-          'xaxis.gridcolor': gridColor,
-          'yaxis.gridcolor': gridColor
-        });
-      }
-    }
-
-    // Eventos de teclado
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && e.ctrlKey) {
-        e.preventDefault();
-        calcular();
-      } else if (e.key === 'Escape') {
-        closeShareMenu();
-      }
-    });
-
-    // Manejo de orientación para móviles
-    window.addEventListener('orientationchange', function() {
-      setTimeout(() => {
-        if (currentPlot) {
-          Plotly.Plots.resize('grafico');
-        }
-      }, 200);
-    });
-
-    // Manejo de redimensionamiento
-    window.addEventListener('resize', function() {
-      if (currentPlot) {
-        setTimeout(() => {
-          Plotly.Plots.resize('grafico');
-        }, 100);
-      }
-    });
-
-    // Prevenir zoom en inputs (iOS)
-    document.addEventListener('touchstart', function(e) {
-      if (e.target.tagName === 'INPUT') {
-        e.target.style.fontSize = '16px';
-      }
-    });
-
-    // Manejo de gestos táctiles
-    let touchStartY = 0;
-    let touchStartX = 0;
-
-    document.addEventListener('touchstart', function(e) {
-      touchStartY = e.touches[0].clientY;
-      touchStartX = e.touches[0].clientX;
-    }, { passive: true });
-
-    document.addEventListener('touchmove', function(e) {
-      // Prevenir scroll hacia arriba en iOS cuando ya estás en la parte superior
-      if (window.scrollY === 0 && e.touches[0].clientY > touchStartY) {
-        e.preventDefault();
-      }
-    }, { passive: false });
-
-    // Analytics y métricas (opcional)
-    function trackEvent(action, category = 'Calculator') {
-      // Aquí puedes agregar tu código de analytics
-      console.log(`Event: ${category} - ${action}`);
-    }
-
-    // Tracking de eventos importantes
-    document.getElementById('calculatorForm').addEventListener('submit', () => {
-      trackEvent('Calculate', 'Interaction');
-    });
-
-    // Función para manejar errores globales
-    window.addEventListener('error', function(e) {
-      console.error('Error global:', e.error);
-      showError('Ha ocurrido un error inesperado. Por favor, recarga la página.');
-    });
-
-    // Función para manejar promesas rechazadas
-    window.addEventListener('unhandledrejection', function(e) {
-      console.error('Promesa rechazada:', e.reason);
-      e.preventDefault();
-    });
-
-    // Configuración adicional para PWA
-    window.addEventListener('appinstalled', function(e) {
-      console.log('PWA instalada exitosamente');
-      showSuccess('🎉 ¡Calculadora Taylor instalada!');
-      dismissInstall();
-      trackEvent('App_Installed', 'PWA');
-    });
-
-    // Manejo del estado de la app (foreground/background)
-    document.addEventListener('visibilitychange', function() {
-      if (document.visibilityState === 'visible') {
-        console.log('App visible');
-        // Verificar actualizaciones cuando la app vuelve a primer plano
-        if (swRegistration) {
-          swRegistration.update();
-        }
-      } else {
-        console.log('App oculta');
-      }
-    });
-
-    // Funciones de accesibilidad
-    function announceToScreenReader(message) {
-      const announcement = document.createElement('div');
-      announcement.setAttribute('aria-live', 'polite');
-      announcement.setAttribute('aria-atomic', 'true');
-      announcement.style.position = 'absolute';
-      announcement.style.left = '-10000px';
-      announcement.style.width = '1px';
-      announcement.style.height = '1px';
-      announcement.style.overflow = 'hidden';
-      announcement.textContent = message;
-      
-      document.body.appendChild(announcement);
-      
-      setTimeout(() => {
-        document.body.removeChild(announcement);
-      }, 1000);
-    }
-
-    // Funciones de rendimiento
-    function debounce(func, wait) {
-      let timeout;
-      return function executedFunction(...args) {
-        const later = () => {
-          clearTimeout(timeout);
-          func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-      };
-    }
-
-    // Auto-guardado del estado (opcional)
-    function saveState() {
-      if (calculationResult) {
-        const state = {
-          expr: calculationResult.expr,
-          x0: calculationResult.x0,
-          unidadX: calculationResult.unidadX,
-          unidadY: calculationResult.unidadY,
-          timestamp: Date.now()
-        };
-        localStorage.setItem('calculatorState', JSON.stringify(state));
-      }
-    }
-
-    function loadState() {
-      try {
-        const saved = localStorage.getItem('calculatorState');
-        if (saved) {
-          const state = JSON.parse(saved);
-          const age = Date.now() - state.timestamp;
-          
-          // Solo restaurar si tiene menos de 1 hora
-          if (age < 3600000) {
-            document.getElementById('funcion').value = state.expr;
-            document.getElementById('x0').value = state.x0;
-            document.getElementById('unidadX').value = state.unidadX || '';
-            document.getElementById('unidadY').value = state.unidadY || '';
-          }
-        }
-      } catch (error) {
-        console.log('No se pudo cargar el estado guardado');
-      }
-    }
-
-    // Cargar estado al iniciar
-    loadState();
-
-    // Guardar estado después de cada cálculo
-    const originalCalcular = calcular;
-    calcular = function() {
-      originalCalcular();
-      setTimeout(saveState, 1000);
-    };
-
-    console.log('🧮 Calculadora Taylor PWA v2.0.0 iniciada');
-    console.log('📱 Funcionalidades: Offline, Instalable, Responsive');
-  </script>
-</body>
-</html>
+      <div class="export-options">
+        <button class="export-btn" onclick="descargarGrafico()">📥 PNG</button>
+        <button class="export-btn" onclick
