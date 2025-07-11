@@ -1,888 +1,1437 @@
-<!DOCTYPE html>
+btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</button>
+                <button id="onboardingNext" class="btn btn-primary" onclick="nextOnboarding()">Comenzar</button>
+            </div>
+            <div style="display: flex; justify-content: center; margin-top: 1rem; gap: 0.25rem;">
+                <div class="onboarding-dot active" data-step="0"></div>
+                <div class="onboarding-dot" data-step="1"></div>
+                <div class="onboarding-dot" data-step="2"></div>
+                <div class="onboarding-dot" data-step="3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Navigation -->
+    <div class="mobile-nav">
+        <div class="nav-item active" onclick="setActiveTab('calculator')">
+            <div style="font-size: 1.25rem;">🧮</div>
+            <div style="font-size: 0.75rem;">Calcular</div>
+        </div>
+        <div class="nav-item" onclick="setActiveTab('history')">
+            <div style="font-size: 1.25rem;">📚</div>
+            <div style="font-size: 0.75rem;">Historial</div>
+        </div>
+        <div class="nav-item" onclick="setActiveTab('settings')">
+            <div style="font-size: 1.25rem;">⚙️</div>
+            <div style="font-size: 0.75rem;">Config</div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let currentFunc = 'sin';
+        let centerPoint = 0;
+        let numTerms = 3;
+        let inputValue = 1;
+        let themeColor = '#dc2626';
+        let darkMode = false;
+        let onboardingStep = 0;
+        let history = [];
+
+        // Funciones matemáticas
+        const functions = {
+            sin: {
+                name: 'sin(x)',
+                formula: 'sin(x) = x - x³/3! + x⁵/5! - x⁷/7! + ...',
+                calculate: (x, a, n) => {
+                    let result = 0;
+                    let terms = [];
+                    for (let i = 0; i < n; i++) {
+                        const power = 2 * i + 1;
+                        const coeff = Math.pow(-1, i) / factorial(power);
+                        const term = coeff * Math.pow(x - a, power);
+                        result += term;
+                        terms.push({
+                            term: i + 1,
+                            value: term,
+                            formula: `${i % 2 === 0 ? '+' : '-'}(x-${a})^${power}/${power}!`
+                        });
+                    }
+                    return { result, terms };
+                },
+                realValue: (x) => Math.sin(x),
+                uses: 'Procesamiento de señales, animaciones, simulaciones físicas, GPS',
+                description: 'Fundamental en trigonometría y ondas. Se usa en videojuegos para movimientos suaves, en procesamiento de audio para análisis de frecuencias, y en simulaciones físicas para movimientos pendulares.'
+            },
+            cos: {
+                name: 'cos(x)',
+                formula: 'cos(x) = 1 - x²/2! + x⁴/4! - x⁶/6! + ...',
+                calculate: (x, a, n) => {
+                    let result = 0;
+                    let terms = [];
+                    for (let i = 0; i < n; i++) {
+                        const power = 2 * i;
+                        const coeff = Math.pow(-1, i) / factorial(power);
+                        const term = coeff * Math.pow(x - a, power);
+                        result += term;
+                        terms.push({
+                            term: i + 1,
+                            value: term,
+                            formula: `${i % 2 === 0 ? '+' : '-'}(x-${a})^${power}/${power}!`
+                        });
+                    }
+                    return { result, terms };
+                },
+                realValue: (x) => Math.cos(x),
+                uses: 'Gráficos 3D, rotaciones, análisis de frecuencias',
+                description: 'Esencial en geometría y física. Se usa en gráficos 3D para rotaciones, en sistemas de navegación para cálculo de posiciones, y en ingeniería para análisis de vibraciones.'
+            },
+            x2: {
+                name: 'x²',
+                formula: 'x² = a² + 2a(x-a) + (x-a)²',
+                calculate: (x, a, n) => {
+                    let result = 0;
+                    let terms = [];
+                    const coeffs = [a*a, 2*a, 1];
+                    for (let i = 0; i < Math.min(n, 3); i++) {
+                        const term = coeffs[i] * Math.pow(x - a, i);
+                        result += term;
+                        terms.push({
+                            term: i + 1,
+                            value: term,
+                            formula: `${coeffs[i]}(x-${a})^${i}`
+                        });
+                    }
+                    return { result, terms };
+                },
+                realValue: (x) => x * x,
+                uses: 'Física (energía cinética), geometría, optimización',
+                description: 'Función cuadrática básica. Aparece en leyes físicas como la energía cinética, en geometría para áreas, y en optimización.'
+            },
+            exp: {
+                name: 'eˣ',
+                formula: 'e^x = 1 + x + x²/2! + x³/3! + x⁴/4! + ...',
+                calculate: (x, a, n) => {
+                    let result = 0;
+                    let terms = [];
+                    const ea = Math.exp(a);
+                    for (let i = 0; i < n; i++) {
+                        const coeff = ea / factorial(i);
+                        const term = coeff * Math.pow(x - a, i);
+                        result += term;
+                        terms.push({
+                            term: i + 1,
+                            value: term,
+                            formula: `e^${a}(x-${a})^${i}/${i}!`
+                        });
+                    }
+                    return { result, terms };
+                },
+                realValue: (x) => Math.exp(x),
+                uses: 'Crecimiento poblacional, interés compuesto, machine learning',
+                description: 'Base del crecimiento exponencial. Se usa en redes sociales para algoritmos virales, en finanzas para interés compuesto, y en inteligencia artificial como función de activación.'
+            },
+            ln: {
+                name: 'ln(x)',
+                formula: 'ln(1+x) = x - x²/2 + x³/3 - x⁴/4 + ...',
+                calculate: (x, a, n) => {
+                    if (a <= 0) a = 1;
+                    let result = 0;
+                    let terms = [];
+                    const u = (x - a) / a;
+                    for (let i = 1; i <= n; i++) {
+                        const coeff = Math.pow(-1, i - 1) / i;
+                        const term = coeff * Math.pow(u, i);
+                        result += term;
+                        terms.push({
+                            term: i,
+                            value: term,
+                            formula: `${i % 2 === 1 ? '+' : '-'}((x-${a})/${a})^${i}/${i}`
+                        });
+                    }
+                    return { result: Math.log(a) + result, terms };
+                },
+                realValue: (x) => Math.log(x),
+                uses: 'Compresión de datos, escalas logarítmicas, análisis estadístico',
+                description: 'Inversa de la exponencial. Se usa en compresión de archivos, análisis de datos con escalas logarítmicas, y en química para cálculo de pH.'
+            },
+            sqrt: {
+                name: '√x',
+                formula: '√x = √a + (x-a)/(2√a) - (x-a)²/(8a^(3/2)) + ...',
+                calculate: (x, a, n) => {
+                    if (a <= 0) a = 1;
+                    let result = 0;
+                    let terms = [];
+                    const sqrtA = Math.sqrt(a);
+                    
+                    result += sqrtA;
+                    terms.push({ term: 1, value: sqrtA, formula: `√${a}` });
+                    
+                    if (n > 1) {
+                        const term1 = (x - a) / (2 * sqrtA);
+                        result += term1;
+                        terms.push({ term: 2, value: term1, formula: `(x-${a})/(2√${a})` });
+                    }
+                    
+                    if (n > 2) {
+                        const term2 = -Math.pow(x - a, 2) / (8 * Math.pow(a, 1.5));
+                        result += term2;
+                        terms.push({ term: 3, value: term2, formula: `-(x-${a})²/(8×${a}^(3/2))` });
+                    }
+                    
+                    return { result, terms };
+                },
+                realValue: (x) => Math.sqrt(x),
+                uses: 'Geometría, física, estadística',
+                description: 'Raíz cuadrada. Fundamental en geometría para distancias, en física para velocidades, y en estadística para desviaciones estándar.'
+            }
+        };
+
+        // Funciones auxiliares
+        function factorial(n) {
+            if (n <= 1) return 1;
+            let result = 1;
+            for (let i = 2; i <= n; i++) {
+                result *= i;
+            }
+            return result;
+        }
+
+        function vibrate(pattern = [50]) {
+            if (navigator.vibrate) {
+                navigator.vibrate(pattern);
+            }
+        }
+
+        // Funciones de UI
+        function selectFunction(func) {
+            currentFunc = func;
+            document.querySelectorAll('.function-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('currentFunction').textContent = functions[func].name;
+            updateCalculation();
+            vibrate([30]);
+        }
+
+        function updateCenter(value) {
+            centerPoint = parseFloat(value);
+            document.getElementById('centerValue').textContent = value;
+            updateCalculation();
+            vibrate([10]);
+        }
+
+        function updateTerms(value) {
+            numTerms = parseInt(value);
+            document.getElementById('termsValue').textContent = value;
+            updateCalculation();
+            vibrate([10]);
+        }
+
+        function setInputToCenter() {
+            inputValue = centerPoint;
+            document.getElementById('inputValue').value = centerPoint;
+            updateCalculation();
+            vibrate([30]);
+        }
+
+        function updateCalculation() {
+            inputValue = parseFloat(document.getElementById('inputValue').value) || 0;
+            
+            const func = functions[currentFunc];
+            const calculation = func.calculate(inputValue, centerPoint, numTerms);
+            const realValue = func.realValue(inputValue);
+            const error = Math.abs(realValue - calculation.result);
+            const errorPercent = (error / Math.abs(realValue)) * 100;
+            const precision = 100 - errorPercent;
+
+            // Update results
+            document.getElementById('realValue').textContent = realValue.toFixed(6);
+            document.getElementById('approxValue').textContent = calculation.result.toFixed(6);
+            document.getElementById('errorValue').textContent = error.toFixed(6);
+            document.getElementById('precisionValue').textContent = precision.toFixed(2) + '%';
+            document.getElementById('precisionPercent').textContent = precision.toFixed(1) + '%';
+            
+            // Update precision bar
+            const precisionFill = document.getElementById('precisionFill');
+            precisionFill.style.width = Math.min(precision, 100) + '%';
+            precisionFill.style.background = precision > 95 ? '#059669' : precision > 85 ? '#d97706' : '#dc2626';
+
+            // Update terms
+            updateTermsDisplay(calculation.terms);
+            
+            // Update chart
+            updateChart();
+        }
+
+        function updateTermsDisplay(terms) {
+            const container = document.getElementById('termsContainer');
+            container.innerHTML = '';
+            
+            terms.forEach((term, index) => {
+                const termDiv = document.createElement('div');
+                termDiv.className = 'term-item';
+                termDiv.innerHTML = `
+                    <div class="term-number">${term.term}</div>
+                    <div style="flex: 1;">
+                        <div style="font-family: monospace; font-size: 0.875rem;">${term.formula}</div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">Término ${term.term}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-family: monospace; font-weight: bold;">${term.value.toFixed(6)}</div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">
+                            ${Math.abs(term.value / functions[currentFunc].calculate(inputValue, centerPoint, numTerms).result * 100).toFixed(1)}%
+                        </div>
+                    </div>
+                `;
+                container.appendChild(termDiv);
+            });
+        }
+
+        function updateChart() {
+            const canvas = document.getElementById('chart');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Set up chart parameters
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 40;
+            const chartWidth = width - 2 * padding;
+            const chartHeight = height - 2 * padding;
+            
+            const start = centerPoint - 2 * Math.PI;
+            const end = centerPoint + 2 * Math.PI;
+            const steps = 200;
+            const stepSize = (end - start) / steps;
+            
+            // Calculate data points
+            const realData = [];
+            const approxData = [];
+            let minY = Infinity, maxY = -Infinity;
+            
+            for (let i = 0; i <= steps; i++) {
+                const x = start + i * stepSize;
+                const real = functions[currentFunc].realValue(x);
+                const approx = functions[currentFunc].calculate(x, centerPoint, numTerms).result;
+                
+                realData.push({ x, y: real });
+                approxData.push({ x, y: approx });
+                
+                minY = Math.min(minY, real, approx);
+                maxY = Math.max(maxY, real, approx);
+            }
+            
+            // Add some padding to Y range
+            const yRange = maxY - minY;
+            minY -= yRange * 0.1;
+            maxY += yRange * 0.1;
+            
+            // Helper function to convert data coordinates to canvas coordinates
+            function toCanvasX(x) {
+                return padding + (x - start) / (end - start) * chartWidth;
+            }
+            
+            function toCanvasY(y) {
+                return padding + (maxY - y) / (maxY - minY) * chartHeight;
+            }
+            
+            // Draw grid
+            ctx.strokeStyle = darkMode ? '#4b5563' : '#e5e7eb';
+            ctx.lineWidth = 1;
+            
+            // Vertical grid lines
+            for (let i = 0; i <= 10; i++) {
+                const x = start + (end - start) * i / 10;
+                const canvasX = toCanvasX(x);
+                ctx.beginPath();
+                ctx.moveTo(canvasX, padding);
+                ctx.lineTo(canvasX, height - padding);
+                ctx.stroke();
+            }
+            
+            // Horizontal grid lines
+            for (let i = 0; i <= 10; i++) {
+                const y = minY + (maxY - minY) * i / 10;
+                const canvasY = toCanvasY(y);
+                ctx.beginPath();
+                ctx.moveTo(padding, canvasY);
+                ctx.lineTo(width - padding, canvasY);
+                ctx.stroke();
+            }
+            
+            // Draw axes
+            ctx.strokeStyle = darkMode ? '#9ca3af' : '#6b7280';
+            ctx.lineWidth = 2;
+            
+            // X-axis (y = 0)
+            if (minY <= 0 && maxY >= 0) {
+                const zeroY = toCanvasY(0);
+                ctx.beginPath();
+                ctx.moveTo(padding, zeroY);
+                ctx.lineTo(width - padding, zeroY);
+                ctx.stroke();
+            }
+            
+            // Y-axis (x = 0)
+            if (start <= 0 && end >= 0) {
+                const zeroX = toCanvasX(0);
+                ctx.beginPath();
+                ctx.moveTo(zeroX, padding);
+                ctx.lineTo(zeroX, height - padding);
+                ctx.stroke();
+            }
+            
+            // Draw real function
+            ctx.strokeStyle = '#2563eb';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(realData[0].x), toCanvasY(realData[0].y));
+            for (let i = 1; i < realData.length; i++) {
+                ctx.lineTo(toCanvasX(realData[i].x), toCanvasY(realData[i].y));
+            }
+            ctx.stroke();
+            
+            // Draw approximation
+            ctx.strokeStyle = themeColor;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 8]);
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(approxData[0].x), toCanvasY(approxData[0].y));
+            for (let i = 1; i < approxData.length; i++) {
+                ctx.lineTo(toCanvasX(approxData[i].x), toCanvasY(approxData[i].y));
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Mark current point
+            const currentX = toCanvasX(inputValue);
+            const currentRealY = toCanvasY(functions[currentFunc].realValue(inputValue));
+            const currentApproxY = toCanvasY(functions[currentFunc].calculate(inputValue, centerPoint, numTerms).result);
+            
+            // Real point
+            ctx.fillStyle = '#2563eb';
+            ctx.beginPath();
+            ctx.arc(currentX, currentRealY, 6, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Approx point
+            ctx.fillStyle = themeColor;
+            ctx.beginPath();
+            ctx.arc(currentX, currentApproxY, 6, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Draw center point
+            const centerX = toCanvasX(centerPoint);
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(centerX, padding);
+            ctx.lineTo(centerX, height - padding);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function setThemeColor(color) {
+            themeColor = color;
+            document.documentElement.style.setProperty('--theme-color', color);
+            document.documentElement.style.setProperty('--theme-color-light', color + '20');
+            
+            document.querySelectorAll('.color-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            updateCalculation();
+            vibrate([30]);
+        }
+
+        function toggleDarkMode() {
+            darkMode = !darkMode;
+            document.body.classList.toggle('dark', darkMode);
+            document.getElementById('theme-icon').textContent = darkMode ? '☀️' : '🌙';
+            updateCalculation();
+            vibrate([30]);
+        }
+
+        function showExplanation() {
+            const func = functions[currentFunc];
+            document.getElementById('explanationTitle').textContent = func.name;
+            document.getElementById('explanationContent').innerHTML = `
+                <div style="margin-bottom: 1rem;">
+                    <h4 style="font-weight: 600; margin-bottom: 0.5rem;">Fórmula de la Serie:</h4>
+                    <div style="font-family: monospace; background: ${darkMode ? '#4b5563' : '#f3f4f6'}; padding: 1rem; border-radius: 0.5rem;">${func.formula}</div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <h4 style="font-weight: 600; margin-bottom: 0.5rem;">¿Para qué sirve?</h4>
+                    <p style="color: ${darkMode ? '#d1d5db' : '#4b5563'};">${func.description}</p>
+                </div>
+                <div>
+                    <h4 style="font-weight: 600; margin-bottom: 0.5rem;">Aplicaciones:</h4>
+                    <p style="color: ${darkMode ? '#d1d5db' : '#4b5563'};">${func.uses}</p>
+                </div>
+            `;
+            document.getElementById('explanationModal').classList.remove('hidden');
+            vibrate([50]);
+        }
+
+        function showUses() {
+            const func = functions[currentFunc];
+            document.getElementById('usesTitle').textContent = func.name;
+            document.getElementById('usesContent').innerHTML = `
+                <div style="margin-bottom: 1rem; padding: 1rem; background: #dbeafe; border-radius: 0.5rem; border: 1px solid #93c5fd;">
+                    <h4 style="font-weight: 600; color: #1e40af; margin-bottom: 0.5rem;">En tu vida cotidiana:</h4>
+                    <p style="color: #1e40af; font-size: 0.875rem;">${func.description}</p>
+                </div>
+                <div style="margin-bottom: 1rem; padding: 1rem; background: #d1fae5; border-radius: 0.5rem; border: 1px solid #86efac;">
+                    <h4 style="font-weight: 600; color: #059669; margin-bottom: 0.5rem;">Aplicaciones tecnológicas:</h4>
+                    <p style="color: #059669; font-size: 0.875rem;">${func.uses}</p>
+                </div>
+                <div style="padding: 1rem; background: ${darkMode ? '#4b5563' : '#f3f4f6'}; border-radius: 0.5rem;">
+                    <h4 style="font-weight: 600; margin-bottom: 0.5rem;">¿Por qué aproximaciones?</h4>
+                    <p style="font-size: 0.875rem; color: ${darkMode ? '#d1d5db' : '#4b5563'};">
+                        Las computadoras no pueden calcular valores exactos de funciones como ${func.name} directamente. 
+                        En su lugar, usan estas aproximaciones de Taylor para obtener resultados muy precisos de forma rápida.
+                    </p>
+                </div>
+            `;
+            document.getElementById('usesModal').classList.remove('hidden');
+            vibrate([50]);
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function saveToHistory() {
+            const func = functions[currentFunc];
+            const calculation = func.calculate(inputValue, centerPoint, numTerms);
+            const historyItem = {
+                id: Date.now(),
+                function: currentFunc,
+                input: inputValue,
+                center: centerPoint,
+                terms: numTerms,
+                result: calculation.result,
+                timestamp: new Date().toLocaleTimeString()
+            };
+            history.unshift(historyItem);
+            if (history.length > 10) history.pop();
+            
+            vibrate([50]);
+            alert('¡Cálculo guardado en el historial! 📚');
+        }
+
+        function resetAll() {
+            currentFunc = 'sin';
+            centerPoint = 0;
+            numTerms = 3;
+            inputValue = 1;
+            
+            document.querySelectorAll('.function-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.function-btn').classList.add('active');
+            document.getElementById('currentFunction').textContent = 'sin(x)';
+            document.getElementById('centerSlider').value = 0;
+            document.getElementById('centerValue').textContent = '0';
+            document.getElementById('termsSlider').value = 3;
+            document.getElementById('termsValue').textContent = '3';
+            document.getElementById('inputValue').value = 1;
+            
+            updateCalculation();
+            vibrate([50]);
+        }
+
+        function exportChart() {
+            vibrate([50]);
+            alert('💾 Función de exportar implementada - se descargaría como imagen PNG');
+        }
+
+        function resetChart() {
+            updateCalculation();
+            vibrate([30]);
+        }
+
+        function setActiveTab(tab) {
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+            vibrate([30]);
+            
+            if (tab === 'history') {
+                alert('📚 Historial: ' + (history.length ? `${history.length} cálculos guardados` : 'No hay cálculos guardados'));
+            } else if (tab === 'settings') {
+                alert('⚙️ Configuración: Usa los controles del header para cambiar tema y colores');
+            }
+        }
+
+        // Onboarding
+        const onboardingSteps = [
+            { title: '¡Bienvenido a T-CAL!', text: 'Tu calculadora de Series de Taylor', action: 'Comenzar' },
+            { title: 'Selecciona una función', text: 'Toca cualquier función matemática', action: 'Siguiente' },
+            { title: 'Ajusta parámetros', text: 'Desliza para cambiar centro y términos', action: 'Siguiente' },
+            { title: '¡Listo para calcular!', text: 'Explora y disfruta aprendiendo', action: 'Empezar' }
+        ];
+
+        function nextOnboarding() {
+            if (onboardingStep < onboardingSteps.length - 1) {
+                onboardingStep++;
+                updateOnboarding();
+            } else {
+                document.getElementById('onboarding').classList.add('hidden');
+            }
+            vibrate([50]);
+        }
+
+        function prevOnboarding() {
+            if (onboardingStep > 0) {
+                onboardingStep--;
+                updateOnboarding();
+            }
+            vibrate([30]);
+        }
+
+        function updateOnboarding() {
+            const step = onboardingSteps[onboardingStep];
+            document.getElementById('onboardingTitle').textContent = step.title;
+            document.getElementById('onboardingText').textContent = step.text;
+            document.getElementById('onboardingNext').textContent = step.action;
+            
+            document.getElementById('onboardingPrev').style.display = onboardingStep > 0 ? 'block' : 'none';
+            
+            document.querySelectorAll('.onboarding-dot').forEach((dot, index) => {
+                dot.classList.toggle('active', index === onboardingStep);
+            });
+        }
+
+        // Gestures and touch events
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!touchStartX || !touchStartY) return;
+            
+            const touchEndX = e.touches[0].clientX;
+            const touchEndY = e.touches[0].clientY;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            
+            if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                const functions = Object.keys(functions);
+                const currentIndex = functions.indexOf(currentFunc);
+                
+                if (deltaX > 0 && currentIndex > 0) {
+                    // Swipe right - previous function
+                    selectFunction(functions[currentIndex - 1]);
+                } else if (deltaX < 0 && currentIndex < functions.length - 1) {
+                    // Swipe left - next function
+                    selectFunction(functions[currentIndex + 1]);
+                }
+                
+                touchStartX = 0;
+                touchStartY = 0;
+            }
+        });
+
+        // Initialize
+        function init() {
+            // Set initial theme
+            document.documentElement.style.setProperty('--theme-color', themeColor);
+            document.documentElement.style.setProperty('--theme-color-light', themeColor + '20');
+            
+            // Add onboarding dots style
+            const style = document.createElement('style');
+            style.textContent = `
+                .onboarding-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: #d1d5db;
+                    transition: all 0.2s;
+                }
+                .onboarding-dot.active {
+                    background: var(--theme-color, #dc2626);
+                    transform: scale(1.2);
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Initial calculation
+            updateCalculation();
+            
+            // Auto-close onboarding after 15 seconds
+            setTimeout(() => {
+                document.getElementById('onboarding').classList.add('hidden');
+            }, 15000);
+        }
+
+        // Start app
+        document.addEventListener('DOMContentLoaded', init);
+
+        // PWA Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript;base64,Ly8gU2ltcGxlIFNlcnZpY2UgV29ya2VyIGZvciBUYXlsb3IgQ2FsCmNvbnN0IENBQ0hFX05BTUUgPSAndGF5bG9yLWNhbC12Mi4wLjAnOwpjb25zdCB1cmxzVG9DYWNoZSA9IFsnLyddOwoKc2VsZ<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Calculadora de linealización con series de Taylor - Taylor-Cal">
-  <meta name="theme-color" content="#0066cc">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Taylor-Cal">
-  
-  <title>Calculadora Taylor - Taylor-Cal</title>
-  
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="data:application/json,{
-    \"name\": \"Calculadora de Linealización Taylor - Taylor-Cal\",
-    \"short_name\": \"Taylor-Cal\",
-    \"description\": \"Herramienta académica para calcular y visualizar la linealización de funciones\",
-    \"version\": \"2.1.0\",
-    \"start_url\": \"/\",
-    \"display\": \"standalone\",
-    \"background_color\": \"#0066cc\",
-    \"theme_color\": \"#0066cc\",
-    \"orientation\": \"portrait-primary\",
-    \"categories\": [\"education\", \"utilities\"],
-    \"lang\": \"es\",
-    \"icons\": [{
-      \"src\": \"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgZmlsbD0iIzAwNjZjYyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjZmZmZmZmIiBmb250LXNpemU9IjMwIj5UYXlsb3ItQ2FsPC90ZXh0Pjwvc3ZnPg==\",
-      \"sizes\": \"192x192\",
-      \"type\": \"image/svg+xml\",
-      \"purpose\": \"any maskable\"
-    }]
-  }">
-  
-  <!-- Scripts externos con defer -->
-  <script defer src="https://cdn.plot.ly/plotly-3.0.1.min.js" charset="utf-8"></script>
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
-  
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    :root {
-      --primary: #0066cc;
-      --secondary: #004499;
-      --accent: #ff6600;
-      --success: #059669;
-      --warning: #f59e0b;
-      --danger: #dc2626;
-      --light: #f8fafc;
-      --dark: #0f172a;
-      --gradient: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      * {
-        animation: none !important;
-        transition: none !important;
-      }
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--gradient);
-      min-height: 100vh;
-      color: #333;
-      padding: 10px;
-      transition: background 0.3s ease, color 0.3s ease;
-    }
-
-    .dark-mode {
-      background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
-      color: #f4f4f4;
-    }
-
-    .container {
-      max-width: 420px;
-      margin: 0 auto;
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(20px);
-      border-radius: 20px;
-      padding: 20px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      animation: slideIn 0.5s ease-out;
-    }
-
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(30px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .dark-mode .container {
-      background: rgba(30, 30, 30, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .header {
-      text-align: center;
-      margin-bottom: 25px;
-      padding: 20px;
-      background: var(--gradient);
-      border-radius: 15px;
-      color: white;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .header::before {
-      content: '';
-      position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-      animation: shimmer 6s infinite linear;
-    }
-
-    @keyframes shimmer {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .university-logo {
-      width: 60px;
-      height: 60px;
-      margin: 0 auto 10px;
-      background: white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      z-index: 1;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-
-    .taylorcal-letters {
-      font-family: 'Arial Black', Arial, sans-serif;
-      font-weight: 900;
-      font-size: 14px;
-      color: var(--primary);
-      letter-spacing: -1px;
-    }
-
-    .header h1 {
-      font-size: 1.6rem;
-      margin-bottom: 8px;
-      position: relative;
-      z-index: 1;
-      font-weight: 700;
-    }
-
-    .header p {
-      font-size: 0.9rem;
-      opacity: 0.95;
-      position: relative;
-      z-index: 1;
-    }
-
-    .university-info {
-      font-size: 0.8rem;
-      opacity: 0.8;
-      margin-top: 5px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .theme-selector {
-      margin-bottom: 20px;
-      text-align: center;
-    }
-
-    .theme-selector label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 600;
-      color: #555;
-      font-size: 0.9rem;
-    }
-
-    .dark-mode .theme-selector label {
-      color: #ccc;
-    }
-
-    .theme-options {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    .theme-option {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 3px solid transparent;
-      cursor: pointer;
-      transition: border-color 0.3s ease, transform 0.3s ease;
-    }
-
-    .theme-option.active {
-      border-color: var(--accent);
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-
-    .theme-taylorcal { background: linear-gradient(45deg, #0066cc, #ff6600); }
-    .theme-green { background: linear-gradient(45deg, #059669, #10b981); }
-    .theme-purple { background: linear-gradient(45deg, #7c3aed, #a855f7); }
-    .theme-red { background: linear-gradient(45deg, #dc2626, #ef4444); }
-
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 600;
-      color: #555;
-      font-size: 0.95rem;
-    }
-
-    .dark-mode .form-group label {
-      color: #ccc;
-    }
-
-    .form-group input {
-      width: 100%;
-      padding: 16px 20px;
-      border: 2px solid #e1e5e9;
-      border-radius: 12px;
-      font-size: 16px;
-      background: #f8f9fa;
-      transition: border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
-      -webkit-appearance: none;
-    }
-
-    .form-group input:focus {
-      outline: none;
-      border-color: var(--primary);
-      background: white;
-      box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
-      transform: translateY(-1px);
-    }
-
-    .dark-mode .form-group input {
-      background: #2a2a2a;
-      border-color: #404040;
-      color: #f4f4f4;
-    }
-
-    .dark-mode .form-group input:focus {
-      border-color: var(--primary);
-      background: #333;
-    }
-
-    .function-examples {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 10px;
-      justify-content: center;
-    }
-
-    .example-btn {
-      padding: 8px 14px;
-      background: #e9ecef;
-      border: none;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
-      color: #495057;
-      font-weight: 500;
-      role: button;
-    }
-
-    .example-btn:hover {
-      background: var(--primary);
-      color: white;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-
-    .dark-mode .example-btn {
-      background: #404040;
-      color: #ccc;
-    }
-
-    .btn-group {
-      display: flex;
-      gap: 12px;
-      margin-top: 25px;
-    }
-
-    .btn {
-      flex: 1;
-      padding: 16px;
-      border: none;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      touch-action: manipulation; /* Mejora interacción en móviles */
-    }
-
-    .btn-primary {
-      background: var(--gradient);
-      color: white;
-    }
-
-    .btn-secondary {
-      background: #6c757d;
-      color: white;
-    }
-
-    .btn:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-    }
-
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .result-section {
-      margin-top: 25px;
-      padding: 20px;
-      background: #f8f9fa;
-      border-radius: 15px;
-      border-left: 4px solid var(--primary);
-      animation: fadeIn 0.5s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .dark-mode .result-section {
-      background: #2a2a2a;
-      border-left-color: var(--accent);
-    }
-
-    .result-title {
-      font-size: 1.1rem;
-      font-weight: 700;
-      margin-bottom: 12px;
-      color: var(--primary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .dark-mode .result-title {
-      color: var(--accent);
-    }
-
-    .result-content {
-      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
-      background: white;
-      padding: 16px;
-      border-radius: 10px;
-      white-space: pre-wrap;
-      font-size: 0.9rem;
-      line-height: 1.5;
-      border: 1px solid #e1e5e9;
-    }
-
-    .dark-mode .result-content {
-      background: #333;
-      border-color: #404040;
-      color: #f4f4f4;
-    }
-
-    .graph-container {
-      margin-top: 25px;
-      background: white;
-      border-radius: 15px;
-      padding: 16px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      animation: fadeIn 0.5s ease 0.2s both;
-    }
-
-    .dark-mode .graph-container {
-      background: #2a2a2a;
-    }
-
-    .loading {
-      display: none;
-      text-align: center;
-      padding: 30px;
-    }
-
-    .loading.active {
-      display: block;
-      animation: pulse 1.5s infinite;
-    }
-
-    .spinner {
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid var(--primary);
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 15px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .dark-mode-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-top: 25px;
-      padding: 15px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 12px;
-      backdrop-filter: blur(10px);
-    }
-
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 60px;
-      height: 34px;
-      margin-left: 10px;
-    }
-
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: background-color 0.4s ease;
-      border-radius: 34px;
-    }
-
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 26px;
-      width: 26px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: transform 0.4s ease;
-      border-radius: 50%;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-
-    input:checked + .slider {
-      background-color: var(--primary);
-    }
-
-    input:checked + .slider:before {
-      transform: translateX(26px);
-    }
-
-    .error, .success {
-      padding: 16px;
-      border-radius: 10px;
-      margin-top: 15px;
-      animation: slideIn 0.3s ease;
-    }
-
-    .error {
-      background: linear-gradient(45deg, #f8d7da, #f1c2c3);
-      color: #721c24;
-      border-left: 4px solid var(--danger);
-    }
-
-    .success {
-      background: linear-gradient(45deg, #d4edda, #c3e6cb);
-      color: #155724;
-      border-left: 4px solid var(--success);
-    }
-
-    .dark-mode .error {
-      background: linear-gradient(45deg, #2d1b1b, #3d2020);
-      color: #f5c6cb;
-    }
-
-    .dark-mode .success {
-      background: linear-gradient(45deg, #1b2d1b, #203d20);
-      color: #c3e6cb;
-    }
-
-    /* Responsive Design */
-    @media (max-width: 480px) {
-      .container {
-        margin: 5px;
-        padding: 15px;
-      }
-
-      .btn-group {
-        flex-direction: column;
-      }
-
-      .theme-options {
-        gap: 8px;
-      }
-
-      .theme-option {
-        width: 35px;
-        height: 35px;
-      }
-
-      .btn {
-        padding: 12px; /* Botones más pequeños en móviles */
-        font-size: 0.9rem;
-      }
-    }
-
-    @media (orientation: landscape) and (max-height: 500px) {
-      .header {
-        padding: 10px;
-        margin-bottom: 10px;
-      }
-      
-      .university-logo {
-        width: 40px;
-        height: 40px;
-        font-size: 12px;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taylor Cal - Calculadora de Series de Taylor</title>
+    <meta name="description" content="Calculadora interactiva de Series de Taylor con PWA">
+    <meta name="theme-color" content="#dc2626">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiVGF5bG9yIENhbCIsInNob3J0X25hbWUiOiJULUNBTCIsImRlc2NyaXB0aW9uIjoiQ2FsY3VsYWRvcmEgZGUgU2VyaWVzIGRlIFRheWxvciIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsInRoZW1lX2NvbG9yIjoiI2RjMjYyNiIsImJhY2tncm91bmRfY29sb3IiOiIjZmZmZmZmIiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEhOMlp5QjJhV1YzUW05NFBTSXdJREFnTWpBd0lESXdNQ0lnZUcxc2JuTTlJbWgwZEhBNkx5OTNkM2N1ZHpNdWIzSm5Memg0TUhrNWMzWm5JajRLUEhKbFkzUWdlRDBpTVRBaUlIazlJakV3SWlCM2FXUjBhRDBpTVRnd0lpQm9aV2xuYUhROUlqRTRNQ0lnY25nOUlqRXdJaUJtYVd4c1BTSWpaR015TmpJMklpOCtDand2YzNabklnPT0iLCJzaXplcyI6IjE5MngxOTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0=">
+    
+    <!-- Estilos CSS -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
+            min-height: 100vh;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        body.dark {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: #dc2626;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            position: relative;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        
+        .logo-circle {
+            width: 100%;
+            height: 100%;
+            border: 3px solid rgba(255,255,255,0.8);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255,255,255,0.3); }
+            50% { box-shadow: 0 0 30px rgba(255,255,255,0.6); }
+        }
+        
+        .calculator-icon {
+            width: 24px;
+            height: 32px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.4));
+            border-radius: 4px;
+            position: relative;
+            margin-bottom: 4px;
+        }
+        
+        .calculator-icon::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            height: 8px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 2px;
+        }
+        
+        .calculator-icon::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            right: 4px;
+            top: 16px;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(255,255,255,0.6) 0px,
+                rgba(255,255,255,0.6) 3px,
+                transparent 3px,
+                transparent 6px
+            );
+        }
+        
+        .tcal-text {
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header-info h1 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+        }
+        
+        .btn-primary {
+            background: #dc2626;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+        
+        .grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: 1fr 1fr;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        
+        .dark .card {
+            background: #374151;
+            color: white;
+        }
+        
+        .card:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .function-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .function-btn {
+            padding: 0.75rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .function-btn.active {
+            background: var(--theme-color, #dc2626);
+            color: white;
+        }
+        
+        .function-btn:hover {
+            background: #e5e7eb;
+        }
+        
+        .function-btn.active:hover {
+            opacity: 0.9;
+        }
+        
+        .slider-container {
+            margin: 1rem 0;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #e5e7eb;
+            outline: none;
+            appearance: none;
+            cursor: pointer;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--theme-color, #dc2626);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--theme-color, #dc2626);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--theme-color, #dc2626);
+        }
+        
+        .dark .input-field {
+            background: #4b5563;
+            border-color: #6b7280;
+            color: white;
+        }
+        
+        .results-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+        
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: #f9fafb;
+            border-radius: 0.5rem;
+        }
+        
+        .dark .result-row {
+            background: #4b5563;
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin: 1rem 0;
+            background: #f9fafb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .dark .chart-container {
+            background: #4b5563;
+        }
+        
+        .terms-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .term-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: #f9fafb;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .dark .term-item {
+            background: #4b5563;
+        }
+        
+        .term-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--theme-color, #dc2626);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.875rem;
+        }
+        
+        .color-picker {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .color-option {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .color-option.active {
+            border-color: white;
+            transform: scale(1.1);
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .dark .modal-content {
+            background: #374151;
+            color: white;
+        }
+        
+        .mobile-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            padding: 0.5rem;
+            display: none;
+        }
+        
+        .dark .mobile-nav {
+            background: #374151;
+            border-color: #6b7280;
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-nav {
+                display: flex;
+                justify-content: space-around;
+            }
+            body {
+                padding-bottom: 70px;
+            }
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 60px;
+        }
+        
+        .nav-item.active {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        
+        .precision-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .precision-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+        
+        .onboarding {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 1rem;
+        }
+        
+        .onboarding-content {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .dark .onboarding-content {
+            background: #374151;
+            color: white;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        @media (max-width: 640px) {
+            .header {
+                padding: 1rem;
+            }
+            .header-info h1 {
+                font-size: 1.25rem;
+            }
+            .logo {
+                width: 60px;
+                height: 60px;
+            }
+            .card {
+                padding: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="university-logo">
-        <div class="taylorcal-letters">Taylor-Cal</div>
-      </div>
-      <h1>Calculadora Taylor</h1>
-      <p>Linealización de funciones matemáticas</p>
-      <div class="university-info">
-        Taylor-Cal - Herramienta Académica
-      </div>
-    </div>
-
-    <!-- Selector de tema -->
-    <div class="theme-selector">
-      <label>🎨 Personalizar colores:</label>
-      <div class="theme-options">
-        <div class="theme-option theme-taylorcal active" onclick="changeTheme('taylorcal')" title="Colores Taylor-Cal Oficiales"></div>
-        <div class="theme-option theme-green" onclick="changeTheme('green')" title="Verde Tecnológico"></div>
-        <div class="theme-option theme-purple" onclick="changeTheme('purple')" title="Púrpura Moderno"></div>
-        <div class="theme-option theme-red" onclick="changeTheme('red')" title="Rojo Universitario"></div>
-      </div>
-    </div>
-
-    <form id="calculatorForm">
-      <div class="form-group">
-        <label for="funcion">🔢 Función f(x):</label>
-        <input type="text" id="funcion" placeholder="Ingresa tu función (ej: sin(x), x^2, exp(x))" required autocomplete="off">
-        <div class="function-examples">
-          <button type="button" class="example-btn" onclick="setFunction('sin(x)')" role="button" aria-label="Insertar función seno">sin(x)</button>
-          <button type="button" class="example-btn" onclick="setFunction('cos(x)')" role="button" aria-label="Insertar función coseno">cos(x)</button>
-          <button type="button" class="example-btn" onclick="setFunction('x^2')" role="button" aria-label="Insertar función cuadrática">x²</button>
-          <button type="button" class="example-btn" onclick="setFunction('exp(x)')" role="button" aria-label="Insertar función exponencial">eˣ</button>
-          <button type="button" class="example-btn" onclick="setFunction('log(x)')" role="button" aria-label="Insertar función logarítmica">ln(x)</button>
-          <button type="button" class="example-btn" onclick="setFunction('sqrt(x)')" role="button" aria-label="Insertar función raíz cuadrada">√x</button>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div style="display: flex; align-items: center;">
+                    <div class="logo">
+                        <div class="logo-circle">
+                            <div class="calculator-icon"></div>
+                            <div class="tcal-text">T-CAL</div>
+                        </div>
+                    </div>
+                    <div class="header-info">
+                        <h1>Calculadora Taylor</h1>
+                        <p style="opacity: 0.9; font-size: 0.875rem;">Linealización de funciones matemáticas</p>
+                        <p style="opacity: 0.7; font-size: 0.75rem;">Taylor Cal - Herramienta Académica</p>
+                    </div>
+                </div>
+                <div class="header-controls">
+                    <button class="btn btn-secondary" onclick="toggleDarkMode()">
+                        <span id="theme-icon">🌙</span>
+                    </button>
+                    <div class="color-picker">
+                        <div class="color-option active" style="background: #dc2626;" onclick="setThemeColor('#dc2626')"></div>
+                        <div class="color-option" style="background: #059669;" onclick="setThemeColor('#059669')"></div>
+                        <div class="color-option" style="background: #7c3aed;" onclick="setThemeColor('#7c3aed')"></div>
+                        <div class="color-option" style="background: #ea580c;" onclick="setThemeColor('#ea580c')"></div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
 
-      <div class="form-group">
-        <label for="x0">📍 Punto de linealización x₀:</label>
-        <input type="text" id="x0" placeholder="Ej: 0, 1, pi/2..." required autocomplete="off">
-      </div>
+        <!-- Main Content -->
+        <div class="grid">
+            <!-- Controls Panel -->
+            <div>
+                <!-- Function Selection -->
+                <div class="card">
+                    <h3 style="margin-bottom: 1rem; display: flex; align-items: center;">
+                        📚 Función f(x):
+                        <span style="margin-left: 0.5rem; font-size: 0.75rem; opacity: 0.7;">← Toca función →</span>
+                    </h3>
+                    
+                    <input type="text" 
+                           class="input-field" 
+                           placeholder="Ingresa tu función..." 
+                           id="customFunction"
+                           style="margin-bottom: 1rem;">
+                    
+                    <div class="function-grid">
+                        <button class="function-btn active" onclick="selectFunction('sin')">sin(x)</button>
+                        <button class="function-btn" onclick="selectFunction('cos')">cos(x)</button>
+                        <button class="function-btn" onclick="selectFunction('x2')">x²</button>
+                        <button class="function-btn" onclick="selectFunction('exp')">eˣ</button>
+                        <button class="function-btn" onclick="selectFunction('ln')">ln(x)</button>
+                        <button class="function-btn" onclick="selectFunction('sqrt')">√x</button>
+                    </div>
+                    
+                    <div style="background: #f3f4f6; padding: 0.75rem; border-radius: 0.5rem;">
+                        <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">Función actual:</div>
+                        <div id="currentFunction" style="font-family: monospace; font-size: 1.125rem; font-weight: bold; color: var(--theme-color, #dc2626);">sin(x)</div>
+                    </div>
+                </div>
 
-      <div class="form-group">
-        <label for="unidadX">📏 Unidad de x (opcional):</label>
-        <input type="text" id="unidadX" placeholder="Ej: s, m, °, rad" autocomplete="off">
-      </div>
+                <!-- Parameters -->
+                <div class="card" style="margin-top: 1rem;">
+                    <h3 style="margin-bottom: 1rem;">Parámetros</h3>
+                    
+                    <div class="slider-container">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+                            Punto de centro (a): <span id="centerValue" style="color: var(--theme-color, #dc2626); font-weight: bold;">0</span>
+                        </label>
+                        <input type="range" class="slider" min="-3" max="3" step="0.1" value="0" 
+                               id="centerSlider" onchange="updateCenter(this.value)">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
+                            Número de términos: <span id="termsValue" style="color: var(--theme-color, #dc2626); font-weight: bold;">3</span>
+                        </label>
+                        <input type="range" class="slider" min="1" max="10" value="3" 
+                               id="termsSlider" onchange="updateTerms(this.value)">
+                    </div>
+                    
+                    <div style="margin-top: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Valor a evaluar (x):</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="number" class="input-field" value="1" step="0.1" 
+                                   id="inputValue" onchange="updateCalculation()" style="flex: 1;">
+                            <button class="btn btn-secondary" onclick="setInputToCenter()">= a</button>
+                        </div>
+                    </div>
+                </div>
 
-      <div class="form-group">
-        <label for="unidadY">📐 Unidad de f(x) (opcional):</label>
-        <input type="text" id="unidadY" placeholder="Ej: m, kg, V, N" autocomplete="off">
-      </div>
+                <!-- Results -->
+                <div class="card" style="margin-top: 1rem;">
+                    <h3 style="margin-bottom: 1rem;">Resultados</h3>
+                    <div class="results-grid">
+                        <div class="result-row" style="background: #dbeafe;">
+                            <span>Valor real:</span>
+                            <span id="realValue" style="font-family: monospace; font-weight: bold;">0.841471</span>
+                        </div>
+                        <div class="result-row" style="background: var(--theme-color-light, #fef2f2);">
+                            <span>Aproximación:</span>
+                            <span id="approxValue" style="font-family: monospace; font-weight: bold; color: var(--theme-color, #dc2626);">0.841667</span>
+                        </div>
+                        <div class="result-row" style="background: #fef3c7;">
+                            <span>Error:</span>
+                            <span id="errorValue" style="font-family: monospace; font-weight: bold; color: #d97706;">0.000196</span>
+                        </div>
+                        <div class="result-row" style="background: #d1fae5;">
+                            <span>Precisión:</span>
+                            <span id="precisionValue" style="font-family: monospace; font-weight: bold; color: #059669;">99.98%</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 1rem;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">
+                            <span>Precisión</span>
+                            <span id="precisionPercent">99.98%</span>
+                        </div>
+                        <div class="precision-bar">
+                            <div id="precisionFill" class="precision-fill" style="width: 99.98%; background: #059669;"></div>
+                        </div>
+                    </div>
+                </div>
 
-      <div class="btn-group">
-        <button type="submit" class="btn btn-primary" id="calculateBtn">
-          🧮 Calcular
-        </button>
-        <button type="button" class="btn btn-secondary" onclick="clearForm()">
-          🗑️ Limpiar
-        </button>
-      </div>
-    </form>
+                <!-- Actions -->
+                <div class="card" style="margin-top: 1rem;">
+                    <h3 style="margin-bottom: 1rem;">Acciones</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <button class="btn" style="background: #dbeafe; color: #1e40af;" onclick="showExplanation()">
+                            ℹ️ Explicar
+                        </button>
+                        <button class="btn" style="background: #d1fae5; color: #059669;" onclick="showUses()">
+                            👁️ Usos
+                        </button>
+                        <button class="btn" style="background: #e9d5ff; color: #7c3aed;" onclick="saveToHistory()">
+                            📝 Guardar
+                        </button>
+                        <button class="btn" style="background: #f3f4f6; color: #374151;" onclick="resetAll()">
+                            🔄 Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-    <div class="loading" id="loading">
-      <div class="spinner"></div>
-      <p>Calculando linealización...</p>
-    </div>
+            <!-- Visualization Panel -->
+            <div>
+                <!-- Chart -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>Visualización</h3>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn" style="background: #dbeafe; color: #1e40af; padding: 0.5rem;" onclick="exportChart()">
+                                💾
+                            </button>
+                            <button class="btn" style="background: #f3f4f6; color: #374151; padding: 0.5rem;" onclick="resetChart()">
+                                🔄
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <canvas id="chart" width="400" height="200"></canvas>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: center; gap: 1.5rem; margin-top: 1rem; font-size: 0.875rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div style="width: 20px; height: 3px; background: #2563eb; border-radius: 2px;"></div>
+                            <span>Función real</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div style="width: 20px; height: 3px; background: var(--theme-color, #dc2626); border-radius: 2px; background-image: repeating-linear-gradient(90deg, var(--theme-color, #dc2626) 0, var(--theme-color, #dc2626) 4px, transparent 4px, transparent 8px);"></div>
+                            <span>Aproximación Taylor</span>
+                        </div>
+                    </div>
+                </div>
 
-    <div id="resultado" style="display: none;">
-      <div class="result-section">
-        <div class="result-title">
-          <span>📋</span>
-          <span>Ecuación Lineal</span>
+                <!-- Terms -->
+                <div class="card" style="margin-top: 1rem;">
+                    <h3 style="margin-bottom: 1rem;">Términos de la Serie</h3>
+                    <div class="terms-container" id="termsContainer">
+                        <!-- Terms will be generated here -->
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="result-content" id="resultadoContent"></div>
-      </div>
+    </div>
 
-      <div class="result-section">
-        <div class="result-title">
-          <span>🧠</span>
-          <span>Interpretación Matemática</span>
+    <!-- Modals -->
+    <div id="explanationModal" class="modal hidden">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>Explicación: <span id="explanationTitle">sin(x)</span></h3>
+                <button onclick="closeModal('explanationModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+            </div>
+            <div id="explanationContent">
+                <!-- Content will be populated -->
+            </div>
         </div>
-        <div class="result-content" id="interpretacionContent"></div>
-      </div>
-
-      <div class="btn-group">
-        <button class="btn btn-primary" onclick="descargarGrafico()">
-          📥 Descargar Gráfico
-        </button>
-        <button class="btn btn-secondary" onclick="compartirResultado()">
-          🔗 Compartir
-        </button>
-      </div>
     </div>
 
-    <div class="graph-container" id="graficoContainer" style="display: none;">
-      <div id="grafico"></div>
+    <div id="usesModal" class="modal hidden">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>¿Dónde se usa <span id="usesTitle">sin(x)</span>?</h3>
+                <button onclick="closeModal('usesModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+            </div>
+            <div id="usesContent">
+                <!-- Content will be populated -->
+            </div>
+        </div>
     </div>
 
-    <div class="dark-mode-toggle">
-      <span style="color: white;">🌙 Modo oscuro</span>
-      <label class="toggle-switch">
-        <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()" aria-label="Activar o desactivar modo oscuro">
-        <span class="slider"></span>
-      </label>
-    </div>
-  </div>
-
-  <script>
-    // Variables globales
-    let currentPlot = null;
-
-    // Configuración inicial
-    document.addEventListener('DOMContentLoaded', function() {
-      const darkMode = localStorage.getItem('darkMode') === 'true';
-      const savedTheme = localStorage.getItem('selectedTheme') || 'taylorcal';
-      
-      if (darkMode) {
-        document.body.classList.add('dark-mode');
-        document.getElementById('darkModeToggle').checked = true;
-      }
-      
-      changeTheme(savedTheme);
-      
-      // Configuración de Plotly para móviles y responsividad
-      Plotly.setPlotConfig({
-        responsive: true,
-        displayModeBar: true,
-        modeBarButtonsToAdd: ['toImage'],
-        modeBarButtonsToRemove: ['zoom2d', 'pan2d', 'select2d', 'lasso2d'],
-        displaylogo: false
-      });
-    });
-
-    // Cambiar tema
-    function changeTheme(themeName) {
-      const themes = {
-        taylorcal: { primary: '#0066cc', secondary: '#004499', accent: '#ff6600' },
-        green: { primary: '#059669', secondary: '#10b981', accent: '#f59e0b' },
-        purple: { primary: '#7c3aed', secondary: '#a855f7', accent: '#06b6d4' },
-        red: { primary: '#dc2626', secondary: '#ef4444', accent: '#fbbf24' }
-      };
-      
-      const theme = themes[themeName];
-      document.documentElement.style.setProperty('--primary', theme.primary);
-      document.documentElement.style.setProperty('--secondary', theme.secondary);
-      document.documentElement.style.setProperty('--accent', theme.accent);
-      document.documentElement.style.setProperty('--gradient', `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)`);
-      
-      document.querySelectorAll('.theme-option').forEach(btn => btn.classList.remove('active'));
-      document.querySelector(`.theme-${themeName}`).classList.add('active');
-      
-      localStorage.setItem('selectedTheme', themeName);
-      
-      const metaTheme = document.querySelector('meta[name="theme-color"]');
-      if (metaTheme) metaTheme.setAttribute('content', theme.primary);
-    }
-
-    // Alternar modo oscuro
-    function toggleDarkMode() {
-      document.body.classList.toggle('dark-mode');
-      localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-    }
-
-    // Establecer función en el input
-    function setFunction(func) {
-      document.getElementById('funcion').value = func;
-    }
-
-    // Limpiar formulario
-    function clearForm() {
-      document.getElementById('calculatorForm').reset();
-      document.getElementById('resultado').style.display = 'none';
-      document.getElementById('graficoContainer').style.display = 'none';
-      if (currentPlot) {
-        Plotly.purge('grafico');
-        currentPlot = null;
-      }
-    }
-
-    // Función principal de cálculo
-    document.getElementById('calculatorForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const loadingEl = document.getElementById('loading');
-      const resultadoEl = document.getElementById('resultado');
-      const graficoContainerEl = document.getElementById('graficoContainer');
-      const resultadoContentEl = document.getElementById('resultadoContent');
-      const interpretacionContentEl = document.getElementById('interpretacionContent');
-      
-      loadingEl.classList.add('active');
-      resultadoEl.style.display = 'none';
-      graficoContainerEl.style.display = 'none';
-      
-      try {
-        // Obtener valores del formulario
-        const funcionStr = document.getElementById('funcion').value.trim();
-        const x0Str = document.getElementById('x0').value.trim();
-        const unidadX = document.getElementById('unidadX').value.trim() || 'x';
-        const unidadY = document.getElementById('unidadY').value.trim() || 'f(x)';
-        
-        // Validar entrada
-        if (!funcionStr || !x0Str) {
-          throw new Error('Por favor, completa la función y el punto de linealización.');
-        }
-        
-        // Parsear la función y x0
-        const parser = math.parser();
-        let x0 = math.evaluate(x0Str);
-        if (isNaN(x0)) {
-          throw new Error('El punto de linealización x₀ debe ser un número válido.');
-        }
-        
-        // Definir la función
-        parser.evaluate(`f(x) = ${funcionStr}`);
-        const f = x => parser.evaluate(`f(${x})`);
-        
-        // Calcular f(x0) y la derivada en x0
-        const f_x0 = f(x0);
-        if (isNaN(f_x0)) {
-          throw new Error('La función no es válida en x₀. Verifica la expresión.');
-        }
-        
-        // Calcular la derivada numérica
-        const h = 1e-6; // Pequeño incremento para derivada numérica
-        const f_prime_x0 = (f(x0 + h) - f(x0 - h)) / (2 * h);
-        if (isNaN(f_prime_x0)) {
-          throw new Error('No se pudo calcular la derivada en x₀. Verifica la función.');
-        }
-        
-        // Ecuación de la recta tangente: L(x) = f(x0) + f'(x0)(x - x0)
-        const linearization = x => f_x0 + f_prime_x0 * (x - x0);
-        
-        // Generar puntos para el gráfico
-        const xMin = x0 - 2;
-        const xMax = x0 + 2;
-        const xValues = Array.from({ length: 100 }, (_, i) => xMin + (i * (xMax - xMin)) / 99);
-        const fValues = xValues.map(x => {
-          try {
-            return f(x);
-          } catch {
-            return NaN;
-          }
-        });
-        const lValues = xValues.map(x => linearization(x));
-        
-        // Mostrar resultados
-        resultadoContentEl.textContent = `L(x) = ${f_x0.toFixed(4)} + ${f_prime_x0.toFixed(4)} * (x - ${x0.toFixed(4)})`;
-        interpretacionContentEl.textContent = `La recta tangente aproxima la función f(x) = ${funcionStr} en x = ${x0.toFixed(4)}.\nPendiente: ${f_prime_x0.toFixed(4)}\nValor en x₀: ${f_x0.toFixed(4)}`;
-        
-        // Crear gráfico con Plotly
-        const trace1 = {
-          x: xValues,
-          y: fValues,
-          mode: 'lines',
-          name: `f(x) = ${funcionStr}`,
-          line: { color: 'blue' }
-        };
-        const trace2 = {
-          x: xValues,
-          y: lValues,
-          mode: 'lines',
-          name: `L(x) = ${f_x0.toFixed(2)} + ${f_prime_x0.toFixed(2)}(x - ${x0.toFixed(2)})`,
-          line: { color: 'red', dash: 'dash' }
-        };
-        const layout = {
-          title: 'Linealización de Taylor',
-          xaxis: { title: unidadX },
-          yaxis: { title: unidadY },
-          responsive: true,
-          showlegend: true,
-          margin: { t: 50, b: 50, l: 50, r: 50 }
-        };
-        
-        // Renderizar gráfico
-        Plotly.newPlot('grafico', [trace1, trace2], layout, {
-          responsive: true,
-          displayModeBar: true,
-          modeBarButtonsToAdd: ['toImage'],
-          modeBarButtonsToRemove: ['zoom2d', 'pan2d', 'select2d', 'lasso2d'],
-          displaylogo: false
-        }).then(plot => {
-          currentPlot = plot;
-          loadingEl.classList.remove('active');
-          resultadoEl.style.display = 'block';
-          graficoContainerEl.style.display = 'block';
-        });
-      } catch (error) {
-        loadingEl.classList.remove('active');
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'error';
-        errorDiv.textContent = 'Error: ' + error.message;
-        resultadoEl.prepend(errorDiv);
-        resultadoEl.style.display = 'block';
-      }
-    });
-
-    // Descargar gráfico
-    function descargarGrafico() {
-      if (currentPlot) {
-        Plotly.downloadImage('grafico', {
-          format: 'png',
-          filename: 'taylor-cal-grafico',
-          width: 800,
-          height: 600
-        }).then(() => {
-          const successDiv = document.createElement('div');
-          successDiv.className = 'success';
-          successDiv.textContent = 'Gráfico descargado exitosamente.';
-          document.getElementById('resultado').prepend(successDiv);
-          setTimeout(() => successDiv.remove(), 3000);
-        }).catch(err => {
-          const errorDiv = document.createElement('div');
-          errorDiv.className = 'error';
-          errorDiv.textContent = 'Error al descargar el gráfico: ' + err.message;
-          document.getElementById('resultado').prepend(errorDiv);
-          setTimeout(() => errorDiv.remove(), 3000);
-        });
-      } else {
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'error';
-        errorDiv.textContent = 'No hay gráfico para descargar.';
-        document.getElementById('resultado').prepend(errorDiv);
-        setTimeout(() => errorDiv.remove(), 3000);
-      }
-    }
-
-    // Compartir resultado (placeholder)
-    function compartirResultado() {
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'error';
-      errorDiv.textContent = 'Función de compartir no implementada.';
-      document.getElementById('resultado').prepend(errorDiv);
-      setTimeout(() => errorDiv.remove(), 3000);
-    }
-  </script>
-</body>
-</html>
+    <!-- Onboarding -->
+    <div id="onboarding" class="onboarding">
+        <div class="onboarding-content">
+            <div style="margin-bottom: 1rem;">
+                <div class="logo" style="margin: 0 auto 1rem;">
+                    <div class="logo-circle">
+                        <div class="calculator-icon"></div>
+                        <div class="tcal-text">T-CAL</div>
+                    </div>
+                </div>
+            </div>
+            <h3 id="onboardingTitle">¡Bienvenido a T-CAL!</h3>
+            <p id="onboardingText" style="margin: 1rem 0; color: #6b7280;">Tu calculadora de Series de Taylor</p>
+            <div style="display: flex; justify-content: center; gap: 0.75rem;">
+                <button id="onboardingPrev" class="
