@@ -1,699 +1,19 @@
-btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</button>
-                <button id="onboardingNext" class="btn btn-primary" onclick="nextOnboarding()">Comenzar</button>
-            </div>
-            <div style="display: flex; justify-content: center; margin-top: 1rem; gap: 0.25rem;">
-                <div class="onboarding-dot active" data-step="0"></div>
-                <div class="onboarding-dot" data-step="1"></div>
-                <div class="onboarding-dot" data-step="2"></div>
-                <div class="onboarding-dot" data-step="3"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mobile Navigation -->
-    <div class="mobile-nav">
-        <div class="nav-item active" onclick="setActiveTab('calculator')">
-            <div style="font-size: 1.25rem;">🧮</div>
-            <div style="font-size: 0.75rem;">Calcular</div>
-        </div>
-        <div class="nav-item" onclick="setActiveTab('history')">
-            <div style="font-size: 1.25rem;">📚</div>
-            <div style="font-size: 0.75rem;">Historial</div>
-        </div>
-        <div class="nav-item" onclick="setActiveTab('settings')">
-            <div style="font-size: 1.25rem;">⚙️</div>
-            <div style="font-size: 0.75rem;">Config</div>
-        </div>
-    </div>
-
-    <script>
-        // Variables globales
-        let currentFunc = 'sin';
-        let centerPoint = 0;
-        let numTerms = 3;
-        let inputValue = 1;
-        let themeColor = '#dc2626';
-        let darkMode = false;
-        let onboardingStep = 0;
-        let history = [];
-
-        // Funciones matemáticas
-        const functions = {
-            sin: {
-                name: 'sin(x)',
-                formula: 'sin(x) = x - x³/3! + x⁵/5! - x⁷/7! + ...',
-                calculate: (x, a, n) => {
-                    let result = 0;
-                    let terms = [];
-                    for (let i = 0; i < n; i++) {
-                        const power = 2 * i + 1;
-                        const coeff = Math.pow(-1, i) / factorial(power);
-                        const term = coeff * Math.pow(x - a, power);
-                        result += term;
-                        terms.push({
-                            term: i + 1,
-                            value: term,
-                            formula: `${i % 2 === 0 ? '+' : '-'}(x-${a})^${power}/${power}!`
-                        });
-                    }
-                    return { result, terms };
-                },
-                realValue: (x) => Math.sin(x),
-                uses: 'Procesamiento de señales, animaciones, simulaciones físicas, GPS',
-                description: 'Fundamental en trigonometría y ondas. Se usa en videojuegos para movimientos suaves, en procesamiento de audio para análisis de frecuencias, y en simulaciones físicas para movimientos pendulares.'
-            },
-            cos: {
-                name: 'cos(x)',
-                formula: 'cos(x) = 1 - x²/2! + x⁴/4! - x⁶/6! + ...',
-                calculate: (x, a, n) => {
-                    let result = 0;
-                    let terms = [];
-                    for (let i = 0; i < n; i++) {
-                        const power = 2 * i;
-                        const coeff = Math.pow(-1, i) / factorial(power);
-                        const term = coeff * Math.pow(x - a, power);
-                        result += term;
-                        terms.push({
-                            term: i + 1,
-                            value: term,
-                            formula: `${i % 2 === 0 ? '+' : '-'}(x-${a})^${power}/${power}!`
-                        });
-                    }
-                    return { result, terms };
-                },
-                realValue: (x) => Math.cos(x),
-                uses: 'Gráficos 3D, rotaciones, análisis de frecuencias',
-                description: 'Esencial en geometría y física. Se usa en gráficos 3D para rotaciones, en sistemas de navegación para cálculo de posiciones, y en ingeniería para análisis de vibraciones.'
-            },
-            x2: {
-                name: 'x²',
-                formula: 'x² = a² + 2a(x-a) + (x-a)²',
-                calculate: (x, a, n) => {
-                    let result = 0;
-                    let terms = [];
-                    const coeffs = [a*a, 2*a, 1];
-                    for (let i = 0; i < Math.min(n, 3); i++) {
-                        const term = coeffs[i] * Math.pow(x - a, i);
-                        result += term;
-                        terms.push({
-                            term: i + 1,
-                            value: term,
-                            formula: `${coeffs[i]}(x-${a})^${i}`
-                        });
-                    }
-                    return { result, terms };
-                },
-                realValue: (x) => x * x,
-                uses: 'Física (energía cinética), geometría, optimización',
-                description: 'Función cuadrática básica. Aparece en leyes físicas como la energía cinética, en geometría para áreas, y en optimización.'
-            },
-            exp: {
-                name: 'eˣ',
-                formula: 'e^x = 1 + x + x²/2! + x³/3! + x⁴/4! + ...',
-                calculate: (x, a, n) => {
-                    let result = 0;
-                    let terms = [];
-                    const ea = Math.exp(a);
-                    for (let i = 0; i < n; i++) {
-                        const coeff = ea / factorial(i);
-                        const term = coeff * Math.pow(x - a, i);
-                        result += term;
-                        terms.push({
-                            term: i + 1,
-                            value: term,
-                            formula: `e^${a}(x-${a})^${i}/${i}!`
-                        });
-                    }
-                    return { result, terms };
-                },
-                realValue: (x) => Math.exp(x),
-                uses: 'Crecimiento poblacional, interés compuesto, machine learning',
-                description: 'Base del crecimiento exponencial. Se usa en redes sociales para algoritmos virales, en finanzas para interés compuesto, y en inteligencia artificial como función de activación.'
-            },
-            ln: {
-                name: 'ln(x)',
-                formula: 'ln(1+x) = x - x²/2 + x³/3 - x⁴/4 + ...',
-                calculate: (x, a, n) => {
-                    if (a <= 0) a = 1;
-                    let result = 0;
-                    let terms = [];
-                    const u = (x - a) / a;
-                    for (let i = 1; i <= n; i++) {
-                        const coeff = Math.pow(-1, i - 1) / i;
-                        const term = coeff * Math.pow(u, i);
-                        result += term;
-                        terms.push({
-                            term: i,
-                            value: term,
-                            formula: `${i % 2 === 1 ? '+' : '-'}((x-${a})/${a})^${i}/${i}`
-                        });
-                    }
-                    return { result: Math.log(a) + result, terms };
-                },
-                realValue: (x) => Math.log(x),
-                uses: 'Compresión de datos, escalas logarítmicas, análisis estadístico',
-                description: 'Inversa de la exponencial. Se usa en compresión de archivos, análisis de datos con escalas logarítmicas, y en química para cálculo de pH.'
-            },
-            sqrt: {
-                name: '√x',
-                formula: '√x = √a + (x-a)/(2√a) - (x-a)²/(8a^(3/2)) + ...',
-                calculate: (x, a, n) => {
-                    if (a <= 0) a = 1;
-                    let result = 0;
-                    let terms = [];
-                    const sqrtA = Math.sqrt(a);
-                    
-                    result += sqrtA;
-                    terms.push({ term: 1, value: sqrtA, formula: `√${a}` });
-                    
-                    if (n > 1) {
-                        const term1 = (x - a) / (2 * sqrtA);
-                        result += term1;
-                        terms.push({ term: 2, value: term1, formula: `(x-${a})/(2√${a})` });
-                    }
-                    
-                    if (n > 2) {
-                        const term2 = -Math.pow(x - a, 2) / (8 * Math.pow(a, 1.5));
-                        result += term2;
-                        terms.push({ term: 3, value: term2, formula: `-(x-${a})²/(8×${a}^(3/2))` });
-                    }
-                    
-                    return { result, terms };
-                },
-                realValue: (x) => Math.sqrt(x),
-                uses: 'Geometría, física, estadística',
-                description: 'Raíz cuadrada. Fundamental en geometría para distancias, en física para velocidades, y en estadística para desviaciones estándar.'
-            }
-        };
-
-        // Funciones auxiliares
-        function factorial(n) {
-            if (n <= 1) return 1;
-            let result = 1;
-            for (let i = 2; i <= n; i++) {
-                result *= i;
-            }
-            return result;
-        }
-
-        function vibrate(pattern = [50]) {
-            if (navigator.vibrate) {
-                navigator.vibrate(pattern);
-            }
-        }
-
-        // Funciones de UI
-        function selectFunction(func) {
-            currentFunc = func;
-            document.querySelectorAll('.function-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('currentFunction').textContent = functions[func].name;
-            updateCalculation();
-            vibrate([30]);
-        }
-
-        function updateCenter(value) {
-            centerPoint = parseFloat(value);
-            document.getElementById('centerValue').textContent = value;
-            updateCalculation();
-            vibrate([10]);
-        }
-
-        function updateTerms(value) {
-            numTerms = parseInt(value);
-            document.getElementById('termsValue').textContent = value;
-            updateCalculation();
-            vibrate([10]);
-        }
-
-        function setInputToCenter() {
-            inputValue = centerPoint;
-            document.getElementById('inputValue').value = centerPoint;
-            updateCalculation();
-            vibrate([30]);
-        }
-
-        function updateCalculation() {
-            inputValue = parseFloat(document.getElementById('inputValue').value) || 0;
-            
-            const func = functions[currentFunc];
-            const calculation = func.calculate(inputValue, centerPoint, numTerms);
-            const realValue = func.realValue(inputValue);
-            const error = Math.abs(realValue - calculation.result);
-            const errorPercent = (error / Math.abs(realValue)) * 100;
-            const precision = 100 - errorPercent;
-
-            // Update results
-            document.getElementById('realValue').textContent = realValue.toFixed(6);
-            document.getElementById('approxValue').textContent = calculation.result.toFixed(6);
-            document.getElementById('errorValue').textContent = error.toFixed(6);
-            document.getElementById('precisionValue').textContent = precision.toFixed(2) + '%';
-            document.getElementById('precisionPercent').textContent = precision.toFixed(1) + '%';
-            
-            // Update precision bar
-            const precisionFill = document.getElementById('precisionFill');
-            precisionFill.style.width = Math.min(precision, 100) + '%';
-            precisionFill.style.background = precision > 95 ? '#059669' : precision > 85 ? '#d97706' : '#dc2626';
-
-            // Update terms
-            updateTermsDisplay(calculation.terms);
-            
-            // Update chart
-            updateChart();
-        }
-
-        function updateTermsDisplay(terms) {
-            const container = document.getElementById('termsContainer');
-            container.innerHTML = '';
-            
-            terms.forEach((term, index) => {
-                const termDiv = document.createElement('div');
-                termDiv.className = 'term-item';
-                termDiv.innerHTML = `
-                    <div class="term-number">${term.term}</div>
-                    <div style="flex: 1;">
-                        <div style="font-family: monospace; font-size: 0.875rem;">${term.formula}</div>
-                        <div style="font-size: 0.75rem; color: #6b7280;">Término ${term.term}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-family: monospace; font-weight: bold;">${term.value.toFixed(6)}</div>
-                        <div style="font-size: 0.75rem; color: #6b7280;">
-                            ${Math.abs(term.value / functions[currentFunc].calculate(inputValue, centerPoint, numTerms).result * 100).toFixed(1)}%
-                        </div>
-                    </div>
-                `;
-                container.appendChild(termDiv);
-            });
-        }
-
-        function updateChart() {
-            const canvas = document.getElementById('chart');
-            const ctx = canvas.getContext('2d');
-            
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Set up chart parameters
-            const width = canvas.width;
-            const height = canvas.height;
-            const padding = 40;
-            const chartWidth = width - 2 * padding;
-            const chartHeight = height - 2 * padding;
-            
-            const start = centerPoint - 2 * Math.PI;
-            const end = centerPoint + 2 * Math.PI;
-            const steps = 200;
-            const stepSize = (end - start) / steps;
-            
-            // Calculate data points
-            const realData = [];
-            const approxData = [];
-            let minY = Infinity, maxY = -Infinity;
-            
-            for (let i = 0; i <= steps; i++) {
-                const x = start + i * stepSize;
-                const real = functions[currentFunc].realValue(x);
-                const approx = functions[currentFunc].calculate(x, centerPoint, numTerms).result;
-                
-                realData.push({ x, y: real });
-                approxData.push({ x, y: approx });
-                
-                minY = Math.min(minY, real, approx);
-                maxY = Math.max(maxY, real, approx);
-            }
-            
-            // Add some padding to Y range
-            const yRange = maxY - minY;
-            minY -= yRange * 0.1;
-            maxY += yRange * 0.1;
-            
-            // Helper function to convert data coordinates to canvas coordinates
-            function toCanvasX(x) {
-                return padding + (x - start) / (end - start) * chartWidth;
-            }
-            
-            function toCanvasY(y) {
-                return padding + (maxY - y) / (maxY - minY) * chartHeight;
-            }
-            
-            // Draw grid
-            ctx.strokeStyle = darkMode ? '#4b5563' : '#e5e7eb';
-            ctx.lineWidth = 1;
-            
-            // Vertical grid lines
-            for (let i = 0; i <= 10; i++) {
-                const x = start + (end - start) * i / 10;
-                const canvasX = toCanvasX(x);
-                ctx.beginPath();
-                ctx.moveTo(canvasX, padding);
-                ctx.lineTo(canvasX, height - padding);
-                ctx.stroke();
-            }
-            
-            // Horizontal grid lines
-            for (let i = 0; i <= 10; i++) {
-                const y = minY + (maxY - minY) * i / 10;
-                const canvasY = toCanvasY(y);
-                ctx.beginPath();
-                ctx.moveTo(padding, canvasY);
-                ctx.lineTo(width - padding, canvasY);
-                ctx.stroke();
-            }
-            
-            // Draw axes
-            ctx.strokeStyle = darkMode ? '#9ca3af' : '#6b7280';
-            ctx.lineWidth = 2;
-            
-            // X-axis (y = 0)
-            if (minY <= 0 && maxY >= 0) {
-                const zeroY = toCanvasY(0);
-                ctx.beginPath();
-                ctx.moveTo(padding, zeroY);
-                ctx.lineTo(width - padding, zeroY);
-                ctx.stroke();
-            }
-            
-            // Y-axis (x = 0)
-            if (start <= 0 && end >= 0) {
-                const zeroX = toCanvasX(0);
-                ctx.beginPath();
-                ctx.moveTo(zeroX, padding);
-                ctx.lineTo(zeroX, height - padding);
-                ctx.stroke();
-            }
-            
-            // Draw real function
-            ctx.strokeStyle = '#2563eb';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(toCanvasX(realData[0].x), toCanvasY(realData[0].y));
-            for (let i = 1; i < realData.length; i++) {
-                ctx.lineTo(toCanvasX(realData[i].x), toCanvasY(realData[i].y));
-            }
-            ctx.stroke();
-            
-            // Draw approximation
-            ctx.strokeStyle = themeColor;
-            ctx.lineWidth = 3;
-            ctx.setLineDash([8, 8]);
-            ctx.beginPath();
-            ctx.moveTo(toCanvasX(approxData[0].x), toCanvasY(approxData[0].y));
-            for (let i = 1; i < approxData.length; i++) {
-                ctx.lineTo(toCanvasX(approxData[i].x), toCanvasY(approxData[i].y));
-            }
-            ctx.stroke();
-            ctx.setLineDash([]);
-            
-            // Mark current point
-            const currentX = toCanvasX(inputValue);
-            const currentRealY = toCanvasY(functions[currentFunc].realValue(inputValue));
-            const currentApproxY = toCanvasY(functions[currentFunc].calculate(inputValue, centerPoint, numTerms).result);
-            
-            // Real point
-            ctx.fillStyle = '#2563eb';
-            ctx.beginPath();
-            ctx.arc(currentX, currentRealY, 6, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            // Approx point
-            ctx.fillStyle = themeColor;
-            ctx.beginPath();
-            ctx.arc(currentX, currentApproxY, 6, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            // Draw center point
-            const centerX = toCanvasX(centerPoint);
-            ctx.strokeStyle = '#f59e0b';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath();
-            ctx.moveTo(centerX, padding);
-            ctx.lineTo(centerX, height - padding);
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
-
-        function setThemeColor(color) {
-            themeColor = color;
-            document.documentElement.style.setProperty('--theme-color', color);
-            document.documentElement.style.setProperty('--theme-color-light', color + '20');
-            
-            document.querySelectorAll('.color-option').forEach(option => {
-                option.classList.remove('active');
-            });
-            event.target.classList.add('active');
-            
-            updateCalculation();
-            vibrate([30]);
-        }
-
-        function toggleDarkMode() {
-            darkMode = !darkMode;
-            document.body.classList.toggle('dark', darkMode);
-            document.getElementById('theme-icon').textContent = darkMode ? '☀️' : '🌙';
-            updateCalculation();
-            vibrate([30]);
-        }
-
-        function showExplanation() {
-            const func = functions[currentFunc];
-            document.getElementById('explanationTitle').textContent = func.name;
-            document.getElementById('explanationContent').innerHTML = `
-                <div style="margin-bottom: 1rem;">
-                    <h4 style="font-weight: 600; margin-bottom: 0.5rem;">Fórmula de la Serie:</h4>
-                    <div style="font-family: monospace; background: ${darkMode ? '#4b5563' : '#f3f4f6'}; padding: 1rem; border-radius: 0.5rem;">${func.formula}</div>
-                </div>
-                <div style="margin-bottom: 1rem;">
-                    <h4 style="font-weight: 600; margin-bottom: 0.5rem;">¿Para qué sirve?</h4>
-                    <p style="color: ${darkMode ? '#d1d5db' : '#4b5563'};">${func.description}</p>
-                </div>
-                <div>
-                    <h4 style="font-weight: 600; margin-bottom: 0.5rem;">Aplicaciones:</h4>
-                    <p style="color: ${darkMode ? '#d1d5db' : '#4b5563'};">${func.uses}</p>
-                </div>
-            `;
-            document.getElementById('explanationModal').classList.remove('hidden');
-            vibrate([50]);
-        }
-
-        function showUses() {
-            const func = functions[currentFunc];
-            document.getElementById('usesTitle').textContent = func.name;
-            document.getElementById('usesContent').innerHTML = `
-                <div style="margin-bottom: 1rem; padding: 1rem; background: #dbeafe; border-radius: 0.5rem; border: 1px solid #93c5fd;">
-                    <h4 style="font-weight: 600; color: #1e40af; margin-bottom: 0.5rem;">En tu vida cotidiana:</h4>
-                    <p style="color: #1e40af; font-size: 0.875rem;">${func.description}</p>
-                </div>
-                <div style="margin-bottom: 1rem; padding: 1rem; background: #d1fae5; border-radius: 0.5rem; border: 1px solid #86efac;">
-                    <h4 style="font-weight: 600; color: #059669; margin-bottom: 0.5rem;">Aplicaciones tecnológicas:</h4>
-                    <p style="color: #059669; font-size: 0.875rem;">${func.uses}</p>
-                </div>
-                <div style="padding: 1rem; background: ${darkMode ? '#4b5563' : '#f3f4f6'}; border-radius: 0.5rem;">
-                    <h4 style="font-weight: 600; margin-bottom: 0.5rem;">¿Por qué aproximaciones?</h4>
-                    <p style="font-size: 0.875rem; color: ${darkMode ? '#d1d5db' : '#4b5563'};">
-                        Las computadoras no pueden calcular valores exactos de funciones como ${func.name} directamente. 
-                        En su lugar, usan estas aproximaciones de Taylor para obtener resultados muy precisos de forma rápida.
-                    </p>
-                </div>
-            `;
-            document.getElementById('usesModal').classList.remove('hidden');
-            vibrate([50]);
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.add('hidden');
-        }
-
-        function saveToHistory() {
-            const func = functions[currentFunc];
-            const calculation = func.calculate(inputValue, centerPoint, numTerms);
-            const historyItem = {
-                id: Date.now(),
-                function: currentFunc,
-                input: inputValue,
-                center: centerPoint,
-                terms: numTerms,
-                result: calculation.result,
-                timestamp: new Date().toLocaleTimeString()
-            };
-            history.unshift(historyItem);
-            if (history.length > 10) history.pop();
-            
-            vibrate([50]);
-            alert('¡Cálculo guardado en el historial! 📚');
-        }
-
-        function resetAll() {
-            currentFunc = 'sin';
-            centerPoint = 0;
-            numTerms = 3;
-            inputValue = 1;
-            
-            document.querySelectorAll('.function-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelector('.function-btn').classList.add('active');
-            document.getElementById('currentFunction').textContent = 'sin(x)';
-            document.getElementById('centerSlider').value = 0;
-            document.getElementById('centerValue').textContent = '0';
-            document.getElementById('termsSlider').value = 3;
-            document.getElementById('termsValue').textContent = '3';
-            document.getElementById('inputValue').value = 1;
-            
-            updateCalculation();
-            vibrate([50]);
-        }
-
-        function exportChart() {
-            vibrate([50]);
-            alert('💾 Función de exportar implementada - se descargaría como imagen PNG');
-        }
-
-        function resetChart() {
-            updateCalculation();
-            vibrate([30]);
-        }
-
-        function setActiveTab(tab) {
-            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-            event.target.classList.add('active');
-            vibrate([30]);
-            
-            if (tab === 'history') {
-                alert('📚 Historial: ' + (history.length ? `${history.length} cálculos guardados` : 'No hay cálculos guardados'));
-            } else if (tab === 'settings') {
-                alert('⚙️ Configuración: Usa los controles del header para cambiar tema y colores');
-            }
-        }
-
-        // Onboarding
-        const onboardingSteps = [
-            { title: '¡Bienvenido a T-CAL!', text: 'Tu calculadora de Series de Taylor', action: 'Comenzar' },
-            { title: 'Selecciona una función', text: 'Toca cualquier función matemática', action: 'Siguiente' },
-            { title: 'Ajusta parámetros', text: 'Desliza para cambiar centro y términos', action: 'Siguiente' },
-            { title: '¡Listo para calcular!', text: 'Explora y disfruta aprendiendo', action: 'Empezar' }
-        ];
-
-        function nextOnboarding() {
-            if (onboardingStep < onboardingSteps.length - 1) {
-                onboardingStep++;
-                updateOnboarding();
-            } else {
-                document.getElementById('onboarding').classList.add('hidden');
-            }
-            vibrate([50]);
-        }
-
-        function prevOnboarding() {
-            if (onboardingStep > 0) {
-                onboardingStep--;
-                updateOnboarding();
-            }
-            vibrate([30]);
-        }
-
-        function updateOnboarding() {
-            const step = onboardingSteps[onboardingStep];
-            document.getElementById('onboardingTitle').textContent = step.title;
-            document.getElementById('onboardingText').textContent = step.text;
-            document.getElementById('onboardingNext').textContent = step.action;
-            
-            document.getElementById('onboardingPrev').style.display = onboardingStep > 0 ? 'block' : 'none';
-            
-            document.querySelectorAll('.onboarding-dot').forEach((dot, index) => {
-                dot.classList.toggle('active', index === onboardingStep);
-            });
-        }
-
-        // Gestures and touch events
-        let touchStartX = 0;
-        let touchStartY = 0;
-
-        document.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        });
-
-        document.addEventListener('touchmove', (e) => {
-            if (!touchStartX || !touchStartY) return;
-            
-            const touchEndX = e.touches[0].clientX;
-            const touchEndY = e.touches[0].clientY;
-            const deltaX = touchEndX - touchStartX;
-            const deltaY = touchEndY - touchStartY;
-            
-            if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
-                const functions = Object.keys(functions);
-                const currentIndex = functions.indexOf(currentFunc);
-                
-                if (deltaX > 0 && currentIndex > 0) {
-                    // Swipe right - previous function
-                    selectFunction(functions[currentIndex - 1]);
-                } else if (deltaX < 0 && currentIndex < functions.length - 1) {
-                    // Swipe left - next function
-                    selectFunction(functions[currentIndex + 1]);
-                }
-                
-                touchStartX = 0;
-                touchStartY = 0;
-            }
-        });
-
-        // Initialize
-        function init() {
-            // Set initial theme
-            document.documentElement.style.setProperty('--theme-color', themeColor);
-            document.documentElement.style.setProperty('--theme-color-light', themeColor + '20');
-            
-            // Add onboarding dots style
-            const style = document.createElement('style');
-            style.textContent = `
-                .onboarding-dot {
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 50%;
-                    background: #d1d5db;
-                    transition: all 0.2s;
-                }
-                .onboarding-dot.active {
-                    background: var(--theme-color, #dc2626);
-                    transform: scale(1.2);
-                }
-            `;
-            document.head.appendChild(style);
-            
-            // Initial calculation
-            updateCalculation();
-            
-            // Auto-close onboarding after 15 seconds
-            setTimeout(() => {
-                document.getElementById('onboarding').classList.add('hidden');
-            }, 15000);
-        }
-
-        // Start app
-        document.addEventListener('DOMContentLoaded', init);
-
-        // PWA Registration
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('data:text/javascript;base64,Ly8gU2ltcGxlIFNlcnZpY2UgV29ya2VyIGZvciBUYXlsb3IgQ2FsCmNvbnN0IENBQ0hFX05BTUUgPSAndGF5bG9yLWNhbC12Mi4wLjAnOwpjb25zdCB1cmxzVG9DYWNoZSA9IFsnLyddOwoKc2VsZ<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Taylor Cal - Calculadora de Series de Taylor</title>
-    <meta name="description" content="Calculadora interactiva de Series de Taylor con PWA">
+    <meta name="description" content="Calculadora interactiva de Series de Taylor con soporte PWA">
     <meta name="theme-color" content="#dc2626">
-    
-    <!-- PWA Manifest -->
     <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiVGF5bG9yIENhbCIsInNob3J0X25hbWUiOiJULUNBTCIsImRlc2NyaXB0aW9uIjoiQ2FsY3VsYWRvcmEgZGUgU2VyaWVzIGRlIFRheWxvciIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsInRoZW1lX2NvbG9yIjoiI2RjMjYyNiIsImJhY2tncm91bmRfY29sb3IiOiIjZmZmZmZmIiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEhOMlp5QjJhV1YzUW05NFBTSXdJREFnTWpBd0lESXdNQ0lnZUcxc2JuTTlJbWgwZEhBNkx5OTNkM2N1ZHpNdWIzSm5Memg0TUhrNWMzWm5JajRLUEhKbFkzUWdlRDBpTVRBaUlIazlJakV3SWlCM2FXUjBhRDBpTVRnd0lpQm9aV2xuYUhROUlqRTRNQ0lnY25nOUlqRXdJaUJtYVd4c1BTSWpaR015TmpJMklpOCtDand2YzNabklnPT0iLCJzaXplcyI6IjE5MngxOTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0=">
-    
-    <!-- Estilos CSS -->
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2RjMjYyNiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjYwIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+VC1DQUw8L3RleHQ+PC9zdmc+">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%);
@@ -701,19 +21,16 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             padding: 1rem;
             transition: all 0.3s ease;
         }
-        
         body.dark {
             background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
             color: white;
         }
-        
         .container {
             max-width: 1200px;
             margin: 0 auto;
         }
-        
         .header {
-            background: #dc2626;
+            background: var(--theme-color, #dc2626);
             border-radius: 1rem;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
@@ -721,7 +38,6 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             position: relative;
             overflow: hidden;
         }
-        
         .header::before {
             content: '';
             position: absolute;
@@ -732,20 +48,20 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
             animation: shimmer 3s infinite;
         }
-        
         @keyframes shimmer {
             0% { left: -100%; }
             100% { left: 100%; }
         }
-        
+        .header-logo {
+            display: flex;
+            align-items: center;
+        }
         .logo {
             width: 80px;
             height: 80px;
-            position: relative;
             margin-right: 1rem;
             flex-shrink: 0;
         }
-        
         .logo-circle {
             width: 100%;
             height: 100%;
@@ -759,12 +75,10 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             backdrop-filter: blur(10px);
             animation: pulse 2s infinite;
         }
-        
         @keyframes pulse {
             0%, 100% { box-shadow: 0 0 20px rgba(255,255,255,0.3); }
             50% { box-shadow: 0 0 30px rgba(255,255,255,0.6); }
         }
-        
         .calculator-icon {
             width: 24px;
             height: 32px;
@@ -773,7 +87,6 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             position: relative;
             margin-bottom: 4px;
         }
-        
         .calculator-icon::before {
             content: '';
             position: absolute;
@@ -784,7 +97,6 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             background: rgba(0,0,0,0.3);
             border-radius: 2px;
         }
-        
         .calculator-icon::after {
             content: '';
             position: absolute;
@@ -792,22 +104,14 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             left: 4px;
             right: 4px;
             top: 16px;
-            background: repeating-linear-gradient(
-                0deg,
-                rgba(255,255,255,0.6) 0px,
-                rgba(255,255,255,0.6) 3px,
-                transparent 3px,
-                transparent 6px
-            );
+            background: repeating-linear-gradient(0deg, rgba(255,255,255,0.6) 0px, rgba(255,255,255,0.6) 3px, transparent 3px, transparent 6px);
         }
-        
         .tcal-text {
             font-size: 10px;
             font-weight: bold;
             letter-spacing: 1px;
             text-shadow: 0 0 10px rgba(255,255,255,0.8);
         }
-        
         .header-content {
             display: flex;
             align-items: center;
@@ -815,19 +119,16 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             position: relative;
             z-index: 1;
         }
-        
         .header-info h1 {
             font-size: 1.5rem;
             font-weight: bold;
             margin-bottom: 0.25rem;
         }
-        
         .header-controls {
             display: flex;
             gap: 0.5rem;
             align-items: center;
         }
-        
         .btn {
             padding: 0.5rem 1rem;
             border: none;
@@ -839,31 +140,25 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             align-items: center;
             gap: 0.5rem;
         }
-        
         .btn:hover {
             transform: translateY(-1px);
         }
-        
         .btn:active {
             transform: scale(0.98);
         }
-        
         .btn-primary {
-            background: #dc2626;
+            background: var(--theme-color, #dc2626);
             color: white;
         }
-        
         .btn-secondary {
             background: rgba(255,255,255,0.2);
             color: white;
         }
-        
         .grid {
             display: grid;
             gap: 1.5rem;
             grid-template-columns: 1fr 1fr;
         }
-        
         @media (max-width: 768px) {
             .grid {
                 grid-template-columns: 1fr;
@@ -873,7 +168,6 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
                 gap: 1rem;
             }
         }
-        
         .card {
             background: white;
             border-radius: 1rem;
@@ -881,23 +175,19 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             transition: all 0.3s;
         }
-        
         .dark .card {
             background: #374151;
             color: white;
         }
-        
         .card:hover {
             box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         }
-        
         .function-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 0.75rem;
             margin-bottom: 1rem;
         }
-        
         .function-btn {
             padding: 0.75rem;
             border: none;
@@ -908,24 +198,35 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             background: #f3f4f6;
             color: #374151;
         }
-        
         .function-btn.active {
             background: var(--theme-color, #dc2626);
             color: white;
         }
-        
         .function-btn:hover {
             background: #e5e7eb;
         }
-        
         .function-btn.active:hover {
             opacity: 0.9;
         }
-        
+        .function-current {
+            background: #f3f4f6;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+        }
+        .function-current div:first-child {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 0.25rem;
+        }
+        .function-current #currentFunction {
+            font-family: monospace;
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: var(--theme-color, #dc2626);
+        }
         .slider-container {
             margin: 1rem 0;
         }
-        
         .slider {
             width: 100%;
             height: 8px;
@@ -935,7 +236,6 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             appearance: none;
             cursor: pointer;
         }
-        
         .slider::-webkit-slider-thumb {
             appearance: none;
             width: 20px;
@@ -945,7 +245,6 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             cursor: pointer;
             box-shadow: 0 2px 6px rgba(0,0,0,0.2);
         }
-        
         .slider::-moz-range-thumb {
             width: 20px;
             height: 20px;
@@ -955,7 +254,6 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             border: none;
             box-shadow: 0 2px 6px rgba(0,0,0,0.2);
         }
-        
         .input-field {
             width: 100%;
             padding: 0.75rem;
@@ -964,36 +262,37 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             font-size: 1rem;
             transition: border-color 0.2s;
         }
-        
         .input-field:focus {
             outline: none;
             border-color: var(--theme-color, #dc2626);
         }
-        
         .dark .input-field {
             background: #4b5563;
             border-color: #6b7280;
             color: white;
         }
-        
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
         .results-grid {
             display: grid;
             gap: 0.75rem;
         }
-        
         .result-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 0.75rem;
-            background: #f9fafb;
             border-radius: 0.5rem;
         }
-        
+        .result-row:nth-child(1) { background: #dbeafe; }
+        .result-row:nth-child(2) { background: var(--theme-color-light, #fef2f2); }
+        .result-row:nth-child(3) { background: #fef3c7; }
+        .result-row:nth-child(4) { background: #d1fae5; }
         .dark .result-row {
             background: #4b5563;
         }
-        
         .chart-container {
             height: 300px;
             margin: 1rem 0;
@@ -1004,16 +303,48 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             align-items: center;
             justify-content: center;
         }
-        
         .dark .chart-container {
             background: #4b5563;
         }
-        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .chart-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+        }
+        .chart-legend div {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .legend-real {
+            width: 20px;
+            height: 3px;
+            background: #2563eb;
+            border-radius: 2px;
+        }
+        .legend-approx {
+            width: 20px;
+            height: 3px;
+            background: var(--theme-color, #dc2626);
+            border-radius: 2px;
+            background-image: repeating-linear-gradient(90deg, var(--theme-color, #dc2626) 0, var(--theme-color, #dc2626) 4px, transparent 4px, transparent 8px);
+        }
         .terms-container {
             max-height: 300px;
             overflow-y: auto;
         }
-        
         .term-item {
             display: flex;
             align-items: center;
@@ -1023,11 +354,9 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             border-radius: 0.5rem;
             margin-bottom: 0.5rem;
         }
-        
         .dark .term-item {
             background: #4b5563;
         }
-        
         .term-number {
             width: 32px;
             height: 32px;
@@ -1040,13 +369,11 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             font-weight: bold;
             font-size: 0.875rem;
         }
-        
         .color-picker {
             display: flex;
             gap: 0.5rem;
             margin-top: 0.5rem;
         }
-        
         .color-option {
             width: 24px;
             height: 24px;
@@ -1055,12 +382,10 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             border: 2px solid transparent;
             transition: all 0.2s;
         }
-        
         .color-option.active {
             border-color: white;
             transform: scale(1.1);
         }
-        
         .modal {
             position: fixed;
             top: 0;
@@ -1074,7 +399,6 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             z-index: 1000;
             padding: 1rem;
         }
-        
         .modal-content {
             background: white;
             border-radius: 1rem;
@@ -1084,12 +408,16 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             max-height: 80vh;
             overflow-y: auto;
         }
-        
         .dark .modal-content {
             background: #374151;
             color: white;
         }
-        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
         .mobile-nav {
             position: fixed;
             bottom: 0;
@@ -1100,12 +428,10 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             padding: 0.5rem;
             display: none;
         }
-        
         .dark .mobile-nav {
             background: #374151;
             border-color: #6b7280;
         }
-        
         @media (max-width: 768px) {
             .mobile-nav {
                 display: flex;
@@ -1115,7 +441,6 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
                 padding-bottom: 70px;
             }
         }
-        
         .nav-item {
             display: flex;
             flex-direction: column;
@@ -1126,27 +451,32 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             transition: all 0.2s;
             min-width: 60px;
         }
-        
         .nav-item.active {
             background: #fef2f2;
-            color: #dc2626;
+            color: var(--theme-color, #dc2626);
         }
-        
+        .precision-container {
+            margin-top: 1rem;
+        }
+        .precision-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-bottom: 0.25rem;
+        }
         .precision-bar {
             width: 100%;
             height: 8px;
             background: #e5e7eb;
             border-radius: 4px;
             overflow: hidden;
-            margin-top: 0.5rem;
         }
-        
         .precision-fill {
             height: 100%;
             transition: width 0.5s ease;
             border-radius: 4px;
         }
-        
         .onboarding {
             position: fixed;
             top: 0;
@@ -1160,7 +490,6 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             z-index: 2000;
             padding: 1rem;
         }
-        
         .onboarding-content {
             background: white;
             border-radius: 1rem;
@@ -1169,25 +498,20 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
             width: 100%;
             text-align: center;
         }
-        
         .dark .onboarding-content {
             background: #374151;
             color: white;
         }
-        
         .fade-in {
             animation: fadeIn 0.3s ease-in;
         }
-        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
         .hidden {
             display: none !important;
         }
-        
         @media (max-width: 640px) {
             .header {
                 padding: 1rem;
@@ -1208,223 +532,178 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
 <body>
     <div class="container">
         <!-- Header -->
-        <div class="header">
+        <header class="header" role="banner">
             <div class="header-content">
-                <div style="display: flex; align-items: center;">
+                <div class="header-logo">
                     <div class="logo">
-                        <div class="logo-circle">
+                        <div class="logo-circle" aria-label="Logo de T-CAL">
                             <div class="calculator-icon"></div>
                             <div class="tcal-text">T-CAL</div>
                         </div>
                     </div>
                     <div class="header-info">
                         <h1>Calculadora Taylor</h1>
-                        <p style="opacity: 0.9; font-size: 0.875rem;">Linealización de funciones matemáticas</p>
-                        <p style="opacity: 0.7; font-size: 0.75rem;">Taylor Cal - Herramienta Académica</p>
+                        <p>Linealización de funciones matemáticas</p>
+                        <p>Taylor Cal - Herramienta Académica</p>
                     </div>
                 </div>
                 <div class="header-controls">
-                    <button class="btn btn-secondary" onclick="toggleDarkMode()">
+                    <button class="btn btn-secondary" onclick="toggleDarkMode()" aria-label="Cambiar modo oscuro">
                         <span id="theme-icon">🌙</span>
                     </button>
-                    <div class="color-picker">
-                        <div class="color-option active" style="background: #dc2626;" onclick="setThemeColor('#dc2626')"></div>
-                        <div class="color-option" style="background: #059669;" onclick="setThemeColor('#059669')"></div>
-                        <div class="color-option" style="background: #7c3aed;" onclick="setThemeColor('#7c3aed')"></div>
-                        <div class="color-option" style="background: #ea580c;" onclick="setThemeColor('#ea580c')"></div>
+                    <div class="color-picker" role="radiogroup" aria-label="Seleccionar color del tema">
+                        <div class="color-option active" style="background: #dc2626;" onclick="setThemeColor('#dc2626')" role="radio" aria-checked="true"></div>
+                        <div class="color-option" style="background: #059669;" onclick="setThemeColor('#059669')" role="radio" aria-checked="false"></div>
+                        <div class="color-option" style="background: #7c3aed;" onclick="setThemeColor('#7c3aed')" role="radio" aria-checked="false"></div>
+                        <div class="color-option" style="background: #ea580c;" onclick="setThemeColor('#ea580c')" role="radio" aria-checked="false"></div>
                     </div>
                 </div>
             </div>
-        </div>
+        </header>
 
         <!-- Main Content -->
-        <div class="grid">
+        <main class="grid" role="main">
             <!-- Controls Panel -->
-            <div>
+            <section>
                 <!-- Function Selection -->
-                <div class="card">
-                    <h3 style="margin-bottom: 1rem; display: flex; align-items: center;">
-                        📚 Función f(x):
-                        <span style="margin-left: 0.5rem; font-size: 0.75rem; opacity: 0.7;">← Toca función →</span>
-                    </h3>
-                    
-                    <input type="text" 
-                           class="input-field" 
-                           placeholder="Ingresa tu función..." 
-                           id="customFunction"
-                           style="margin-bottom: 1rem;">
-                    
+                <div class="card" role="region" aria-labelledby="function-title">
+                    <h3 id="function-title">📚 Función f(x): <span>← Toca función →</span></h3>
+                    <input type="text" class="input-field" placeholder="Ingresa tu función..." id="customFunction" disabled aria-label="Función personalizada (no implementada)">
                     <div class="function-grid">
-                        <button class="function-btn active" onclick="selectFunction('sin')">sin(x)</button>
-                        <button class="function-btn" onclick="selectFunction('cos')">cos(x)</button>
-                        <button class="function-btn" onclick="selectFunction('x2')">x²</button>
-                        <button class="function-btn" onclick="selectFunction('exp')">eˣ</button>
-                        <button class="function-btn" onclick="selectFunction('ln')">ln(x)</button>
-                        <button class="function-btn" onclick="selectFunction('sqrt')">√x</button>
+                        <button class="function-btn active" onclick="selectFunction('sin')" aria-label="Seleccionar función seno">sin(x)</button>
+                        <button class="function-btn" onclick="selectFunction('cos')" aria-label="Seleccionar función coseno">cos(x)</button>
+                        <button class="function-btn" onclick="selectFunction('x2')" aria-label="Seleccionar función cuadrática">x²</button>
+                        <button class="function-btn" onclick="selectFunction('exp')" aria-label="Seleccionar función exponencial">eˣ</button>
+                        <button class="function-btn" onclick="selectFunction('ln')" aria-label="Seleccionar función logarítmica">ln(x)</button>
+                        <button class="function-btn" onclick="selectFunction('sqrt')" aria-label="Seleccionar función raíz cuadrada">√x</button>
                     </div>
-                    
-                    <div style="background: #f3f4f6; padding: 0.75rem; border-radius: 0.5rem;">
-                        <div style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">Función actual:</div>
-                        <div id="currentFunction" style="font-family: monospace; font-size: 1.125rem; font-weight: bold; color: var(--theme-color, #dc2626);">sin(x)</div>
+                    <div class="function-current">
+                        <div>Función actual:</div>
+                        <div id="currentFunction" aria-live="polite">sin(x)</div>
                     </div>
                 </div>
 
                 <!-- Parameters -->
-                <div class="card" style="margin-top: 1rem;">
-                    <h3 style="margin-bottom: 1rem;">Parámetros</h3>
-                    
+                <div class="card">
+                    <h3>Parámetros</h3>
                     <div class="slider-container">
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
-                            Punto de centro (a): <span id="centerValue" style="color: var(--theme-color, #dc2626); font-weight: bold;">0</span>
-                        </label>
-                        <input type="range" class="slider" min="-3" max="3" step="0.1" value="0" 
-                               id="centerSlider" onchange="updateCenter(this.value)">
+                        <label for="centerSlider">Punto de centro (a): <span id="centerValue">0</span></label>
+                        <input type="range" class="slider" min="-3" max="3" step="0.1" value="0" id="centerSlider" onchange="updateCenter(this.value)" aria-valuemin="-3" aria-valuemax="3" aria-valuenow="0">
                     </div>
-                    
                     <div class="slider-container">
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">
-                            Número de términos: <span id="termsValue" style="color: var(--theme-color, #dc2626); font-weight: bold;">3</span>
-                        </label>
-                        <input type="range" class="slider" min="1" max="10" value="3" 
-                               id="termsSlider" onchange="updateTerms(this.value)">
+                        <label for="termsSlider">Número de términos: <span id="termsValue">3</span></label>
+                        <input type="range" class="slider" min="1" max="10" value="3" id="termsSlider" onchange="updateTerms(this.value)" aria-valuemin="1" aria-valuemax="10" aria-valuenow="3">
                     </div>
-                    
-                    <div style="margin-top: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Valor a evaluar (x):</label>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <input type="number" class="input-field" value="1" step="0.1" 
-                                   id="inputValue" onchange="updateCalculation()" style="flex: 1;">
-                            <button class="btn btn-secondary" onclick="setInputToCenter()">= a</button>
+                    <div>
+                        <label for="inputValue">Valor a evaluar (x):</label>
+                        <div class="input-group">
+                            <input type="number" class="input-field" value="1" step="0.1" id="inputValue" onchange="updateCalculation()" aria-label="Valor de entrada x">
+                            <button class="btn btn-secondary" onclick="setInputToCenter()" aria-label="Establecer x igual a a">= a</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Results -->
-                <div class="card" style="margin-top: 1rem;">
-                    <h3 style="margin-bottom: 1rem;">Resultados</h3>
+                <div class="card">
+                    <h3>Resultados</h3>
                     <div class="results-grid">
-                        <div class="result-row" style="background: #dbeafe;">
+                        <div class="result-row">
                             <span>Valor real:</span>
-                            <span id="realValue" style="font-family: monospace; font-weight: bold;">0.841471</span>
+                            <span id="realValue" aria-live="polite">0.841471</span>
                         </div>
-                        <div class="result-row" style="background: var(--theme-color-light, #fef2f2);">
+                        <div class="result-row">
                             <span>Aproximación:</span>
-                            <span id="approxValue" style="font-family: monospace; font-weight: bold; color: var(--theme-color, #dc2626);">0.841667</span>
+                            <span id="approxValue" aria-live="polite">0.841667</span>
                         </div>
-                        <div class="result-row" style="background: #fef3c7;">
+                        <div class="result-row">
                             <span>Error:</span>
-                            <span id="errorValue" style="font-family: monospace; font-weight: bold; color: #d97706;">0.000196</span>
+                            <span id="errorValue" aria-live="polite">0.000196</span>
                         </div>
-                        <div class="result-row" style="background: #d1fae5;">
+                        <div class="result-row">
                             <span>Precisión:</span>
-                            <span id="precisionValue" style="font-family: monospace; font-weight: bold; color: #059669;">99.98%</span>
+                            <span id="precisionValue" aria-live="polite">99.98%</span>
                         </div>
                     </div>
-                    
-                    <div style="margin-top: 1rem;">
-                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.25rem;">
+                    <div class="precision-container">
+                        <div class="precision-labels">
                             <span>Precisión</span>
                             <span id="precisionPercent">99.98%</span>
                         </div>
                         <div class="precision-bar">
-                            <div id="precisionFill" class="precision-fill" style="width: 99.98%; background: #059669;"></div>
+                            <div id="precisionFill" class="precision-fill" style="width: 99.98%;"></div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Actions -->
-                <div class="card" style="margin-top: 1rem;">
-                    <h3 style="margin-bottom: 1rem;">Acciones</h3>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                        <button class="btn" style="background: #dbeafe; color: #1e40af;" onclick="showExplanation()">
-                            ℹ️ Explicar
-                        </button>
-                        <button class="btn" style="background: #d1fae5; color: #059669;" onclick="showUses()">
-                            👁️ Usos
-                        </button>
-                        <button class="btn" style="background: #e9d5ff; color: #7c3aed;" onclick="saveToHistory()">
-                            📝 Guardar
-                        </button>
-                        <button class="btn" style="background: #f3f4f6; color: #374151;" onclick="resetAll()">
-                            🔄 Reset
-                        </button>
+                <div class="card">
+                    <h3>Acciones</h3>
+                    <div class="action-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                        <button class="btn" onclick="showExplanation()" aria-label="Mostrar explicación de la función">ℹ️ Explicar</button>
+                        <button class="btn" onclick="showUses()" aria-label="Mostrar usos de la función">👁️ Usos</button>
+                        <button class="btn" onclick="saveToHistory()" aria-label="Guardar cálculo en historial">📝 Guardar</button>
+                        <button class="btn" onclick="resetAll()" aria-label="Restablecer todos los valores">🔄 Reset</button>
                     </div>
                 </div>
-            </div>
+            </section>
 
             <!-- Visualization Panel -->
-            <div>
-                <!-- Chart -->
+            <section>
                 <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div class="chart-header">
                         <h3>Visualización</h3>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <button class="btn" style="background: #dbeafe; color: #1e40af; padding: 0.5rem;" onclick="exportChart()">
-                                💾
-                            </button>
-                            <button class="btn" style="background: #f3f4f6; color: #374151; padding: 0.5rem;" onclick="resetChart()">
-                                🔄
-                            </button>
+                        <div class="chart-controls">
+                            <button class="btn" onclick="exportChart()" aria-label="Exportar gráfico como PNG">💾</button>
+                            <button class="btn" onclick="resetChart()" aria-label="Restablecer gráfico">🔄</button>
                         </div>
                     </div>
-                    
                     <div class="chart-container">
-                        <canvas id="chart" width="400" height="200"></canvas>
+                        <canvas id="chart" width="400" height="200" aria-label="Gráfico de la función y su aproximación"></canvas>
                     </div>
-                    
-                    <div style="display: flex; justify-content: center; gap: 1.5rem; margin-top: 1rem; font-size: 0.875rem;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <div style="width: 20px; height: 3px; background: #2563eb; border-radius: 2px;"></div>
+                    <div class="chart-legend">
+                        <div>
+                            <div class="legend-real"></div>
                             <span>Función real</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <div style="width: 20px; height: 3px; background: var(--theme-color, #dc2626); border-radius: 2px; background-image: repeating-linear-gradient(90deg, var(--theme-color, #dc2626) 0, var(--theme-color, #dc2626) 4px, transparent 4px, transparent 8px);"></div>
+                        <div>
+                            <div class="legend-approx"></div>
                             <span>Aproximación Taylor</span>
                         </div>
                     </div>
                 </div>
-
-                <!-- Terms -->
-                <div class="card" style="margin-top: 1rem;">
-                    <h3 style="margin-bottom: 1rem;">Términos de la Serie</h3>
-                    <div class="terms-container" id="termsContainer">
-                        <!-- Terms will be generated here -->
-                    </div>
+                <div class="card">
+                    <h3>Términos de la Serie</h3>
+                    <div class="terms-container" id="termsContainer" role="list"></div>
                 </div>
-            </div>
-        </div>
+            </section>
+        </main>
     </div>
 
     <!-- Modals -->
-    <div id="explanationModal" class="modal hidden">
+    <div id="explanationModal" class="modal hidden" role="dialog" aria-labelledby="explanationTitle">
         <div class="modal-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div class="modal-header">
                 <h3>Explicación: <span id="explanationTitle">sin(x)</span></h3>
-                <button onclick="closeModal('explanationModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+                <button onclick="closeModal('explanationModal')" aria-label="Cerrar modal de explicación">✕</button>
             </div>
-            <div id="explanationContent">
-                <!-- Content will be populated -->
-            </div>
+            <div id="explanationContent"></div>
         </div>
     </div>
-
-    <div id="usesModal" class="modal hidden">
+    <div id="usesModal" class="modal hidden" role="dialog" aria-labelledby="usesTitle">
         <div class="modal-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div class="modal-header">
                 <h3>¿Dónde se usa <span id="usesTitle">sin(x)</span>?</h3>
-                <button onclick="closeModal('usesModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">✕</button>
+                <button onclick="closeModal('usesModal')" aria-label="Cerrar modal de usos">✕</button>
             </div>
-            <div id="usesContent">
-                <!-- Content will be populated -->
-            </div>
+            <div id="usesContent"></div>
         </div>
     </div>
 
     <!-- Onboarding -->
-    <div id="onboarding" class="onboarding">
+    <div id="onboarding" class="onboarding" role="dialog" aria-labelledby="onboardingTitle">
         <div class="onboarding-content">
-            <div style="margin-bottom: 1rem;">
-                <div class="logo" style="margin: 0 auto 1rem;">
+            <div class="onboarding-logo">
+                <div class="logo">
                     <div class="logo-circle">
                         <div class="calculator-icon"></div>
                         <div class="tcal-text">T-CAL</div>
@@ -1432,6 +711,706 @@ btn btn-secondary" onclick="prevOnboarding()" style="display: none;">Anterior</b
                 </div>
             </div>
             <h3 id="onboardingTitle">¡Bienvenido a T-CAL!</h3>
-            <p id="onboardingText" style="margin: 1rem 0; color: #6b7280;">Tu calculadora de Series de Taylor</p>
-            <div style="display: flex; justify-content: center; gap: 0.75rem;">
-                <button id="onboardingPrev" class="
+            <p id="onboardingText">Tu calculadora de Series de Taylor</p>
+            <div class="onboarding-buttons">
+                <button id="onboardingPrev" class="btn btn-secondary" onclick="prevOnboarding()" style="display: none;" aria-label="Paso anterior del tutorial">Anterior</button>
+                <button id="onboardingNext" class="btn btn-primary" onclick="nextOnboarding()" aria-label="Siguiente paso del tutorial">Comenzar</button>
+            </div>
+            <div class="onboarding-dots">
+                <div class="onboarding-dot active" data-step="0"></div>
+                <div class="onboarding-dot" data-step="1"></div>
+                <div class="onboarding-dot" data-step="2"></div>
+                <div class="onboarding-dot" data-step="3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Navigation -->
+    <nav class="mobile-nav" role="navigation">
+        <div class="nav-item active" onclick="setActiveTab('calculator')" aria-current="page">
+            <div>🧮</div>
+            <div>Calcular</div>
+        </div>
+        <div class="nav-item" onclick="setActiveTab('history')">
+            <div>📚</div>
+            <div>Historial</div>
+        </div>
+        <div class="nav-item" onclick="setActiveTab('settings')">
+            <div>⚙️</div>
+            <div>Config</div>
+        </div>
+    </nav>
+
+    <script>
+        // Estado inicial
+        const state = {
+            currentFunc: 'sin',
+            centerPoint: 0,
+            numTerms: 3,
+            inputValue: 1,
+            themeColor: '#dc2626',
+            darkMode: false,
+            onboardingStep: 0,
+            history: []
+        };
+
+        // Definición de funciones matemáticas
+        const functions = {
+            sin: {
+                name: 'sin(x)',
+                formula: 'sin(x) = x - x³/3! + x⁵/5! - x⁷/7! + ...',
+                calculate: (x, a, n) => {
+                    try {
+                        let result = 0;
+                        let terms = [];
+                        for (let i = 0; i < n; i++) {
+                            const power = 2 * i + 1;
+                            const coeff = Math.pow(-1, i) / factorial(power);
+                            const term = coeff * Math.pow(x - a, power);
+                            result += term;
+                            terms.push({
+                                term: i + 1,
+                                value: term,
+                                formula: `${i % 2 === 0 ? '+' : '-'}(x-${a})^${power}/${power}!`
+                            });
+                        }
+                        return { result, terms };
+                    } catch (error) {
+                        console.error('Error en cálculo de sin:', error);
+                        return { result: NaN, terms: [] };
+                    }
+                },
+                realValue: (x) => Math.sin(x),
+                uses: 'Procesamiento de señales, animaciones, simulaciones físicas, GPS',
+                description: 'Fundamental en trigonometría y ondas.'
+            },
+            cos: {
+                name: 'cos(x)',
+                formula: 'cos(x) = 1 - x²/2! + x⁴/4! - x⁶/6! + ...',
+                calculate: (x, a, n) => {
+                    try {
+                        let result = 0;
+                        let terms = [];
+                        for (let i = 0; i < n; i++) {
+                            const power = 2 * i;
+                            const coeff = Math.pow(-1, i) / factorial(power);
+                            const term = coeff * Math.pow(x - a, power);
+                            result += term;
+                            terms.push({
+                                term: i + 1,
+                                value: term,
+                                formula: `${i % 2 === 0 ? '+' : '-'}(x-${a})^${power}/${power}!`
+                            });
+                        }
+                        return { result, terms };
+                    } catch (error) {
+                        console.error('Error en cálculo de cos:', error);
+                        return { result: NaN, terms: [] };
+                    }
+                },
+                realValue: (x) => Math.cos(x),
+                uses: 'Gráficos 3D, rotaciones, análisis de frecuencias',
+                description: 'Esencial en geometría y física.'
+            },
+            x2: {
+                name: 'x²',
+                formula: 'x² = a² + 2a(x-a) + (x-a)²',
+                calculate: (x, a, n) => {
+                    try {
+                        let result = 0;
+                        let terms = [];
+                        const coeffs = [a * a, 2 * a, 1];
+                        for (let i = 0; i < Math.min(n, 3); i++) {
+                            const term = coeffs[i] * Math.pow(x - a, i);
+                            result += term;
+                            terms.push({
+                                term: i + 1,
+                                value: term,
+                                formula: `${coeffs[i]}(x-${a})^${i}`
+                            });
+                        }
+                        return { result, terms };
+                    } catch (error) {
+                        console.error('Error en cálculo de x²:', error);
+                        return { result: NaN, terms: [] };
+                    }
+                },
+                realValue: (x) => x * x,
+                uses: 'Física, geometría, optimización',
+                description: 'Función cuadrática básica.'
+            },
+            exp: {
+                name: 'eˣ',
+                formula: 'e^x = 1 + x + x²/2! + x³/3! + x⁴/4! + ...',
+                calculate: (x, a, n) => {
+                    try {
+                        let result = 0;
+                        let terms = [];
+                        const ea = Math.exp(a);
+                        for (let i = 0; i < n; i++) {
+                            const coeff = ea / factorial(i);
+                            const term = coeff * Math.pow(x - a, i);
+                            result += term;
+                            terms.push({
+                                term: i + 1,
+                                value: term,
+                                formula: `e^${a}(x-${a})^${i}/${i}!`
+                            });
+                        }
+                        return { result, terms };
+                    } catch (error) {
+                        console.error('Error en cálculo de exp:', error);
+                        return { result: NaN, terms: [] };
+                    }
+                },
+                realValue: (x) => Math.exp(x),
+                uses: 'Crecimiento poblacional, interés compuesto, machine learning',
+                description: 'Base del crecimiento exponencial.'
+            },
+            ln: {
+                name: 'ln(x)',
+                formula: 'ln(1+x) = x - x²/2 + x³/3 - x⁴/4 + ...',
+                calculate: (x, a, n) => {
+                    try {
+                        if (x <= 0 || a <= 0) throw new Error('ln(x) no definido para x ≤ 0 o a ≤ 0');
+                        a = a <= 0 ? 1 : a;
+                        let result = 0;
+                        let terms = [];
+                        const u = (x - a) / a;
+                        for (let i = 1; i <= n; i++) {
+                            const coeff = Math.pow(-1, i - 1) / i;
+                            const term = coeff * Math.pow(u, i);
+                            result += term;
+                            terms.push({
+                                term: i,
+                                value: term,
+                                formula: `${i % 2 === 1 ? '+' : '-'}((x-${a})/${a})^${i}/${i}`
+                            });
+                        }
+                        return { result: Math.log(a) + result, terms };
+                    } catch (error) {
+                        console.error('Error en cálculo de ln:', error);
+                        return { result: NaN, terms: [] };
+                    }
+                },
+                realValue: (x) => x > 0 ? Math.log(x) : NaN,
+                uses: 'Compresión de datos, escalas logarítmicas, análisis estadístico',
+                description: 'Inversa de la exponencial.'
+            },
+            sqrt: {
+                name: '√x',
+                formula: '√x = √a + (x-a)/(2√a) - (x-a)²/(8a^(3/2)) + ...',
+                calculate: (x, a, n) => {
+                    try {
+                        if (x < 0 || a <= 0) throw new Error('√x no definido para x < 0 o a ≤ 0');
+                        a = a <= 0 ? 1 : a;
+                        let result = 0;
+                        let terms = [];
+                        const sqrtA = Math.sqrt(a);
+                        result += sqrtA;
+                        terms.push({ term: 1, value: sqrtA, formula: `√${a}` });
+                        if (n > 1) {
+                            const term1 = (x - a) / (2 * sqrtA);
+                            result += term1;
+                            terms.push({ term: 2, value: term1, formula: `(x-${a})/(2√${a})` });
+                        }
+                        if (n > 2) {
+                            const term2 = -Math.pow(x - a, 2) / (8 * Math.pow(a, 1.5));
+                            result += term2;
+                            terms.push({ term: 3, value: term2, formula: `-(x-${a})²/(8×${a}^(3/2))` });
+                        }
+                        return { result, terms };
+                    } catch (error) {
+                        console.error('Error en cálculo de sqrt:', error);
+                        return { result: NaN, terms: [] };
+                    }
+                },
+                realValue: (x) => x >= 0 ? Math.sqrt(x) : NaN,
+                uses: 'Geometría, física, estadística',
+                description: 'Raíz cuadrada fundamental.'
+            }
+        };
+
+        // Funciones auxiliares
+        function factorial(n) {
+            if (n <= 1) return 1;
+            let result = 1;
+            for (let i = 2; i <= n; i++) result *= i;
+            return result;
+        }
+
+        function vibrate(pattern = [50]) {
+            if (navigator.vibrate) navigator.vibrate(pattern);
+        }
+
+        // Funciones de UI
+        function selectFunction(func) {
+            if (!functions[func]) return;
+            state.currentFunc = func;
+            document.querySelectorAll('.function-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('currentFunction').textContent = functions[func].name;
+            updateCalculation();
+            vibrate([30]);
+        }
+
+        function updateCenter(value) {
+            state.centerPoint = parseFloat(value);
+            document.getElementById('centerValue').textContent = value;
+            document.getElementById('centerSlider').setAttribute('aria-valuenow', value);
+            updateCalculation();
+            vibrate([10]);
+        }
+
+        function updateTerms(value) {
+            state.numTerms = parseInt(value);
+            document.getElementById('termsValue').textContent = value;
+            document.getElementById('termsSlider').setAttribute('aria-valuenow', value);
+            updateCalculation();
+            vibrate([10]);
+        }
+
+        function setInputToCenter() {
+            state.inputValue = state.centerPoint;
+            document.getElementById('inputValue').value = state.centerPoint;
+            updateCalculation();
+            vibrate([30]);
+        }
+
+        function updateCalculation() {
+            state.inputValue = parseFloat(document.getElementById('inputValue').value) || 0;
+            const func = functions[state.currentFunc];
+            
+            try {
+                const calculation = func.calculate(state.inputValue, state.centerPoint, state.numTerms);
+                const realValue = func.realValue(state.inputValue);
+                
+                if (isNaN(calculation.result) || isNaN(realValue)) {
+                    alert('Error: Entrada no válida para la función seleccionada.');
+                    return;
+                }
+                
+                const error = Math.abs(realValue - calculation.result);
+                const errorPercent = realValue !== 0 ? (error / Math.abs(realValue)) * 100 : 0;
+                const precision = 100 - errorPercent;
+
+                document.getElementById('realValue').textContent = realValue.toFixed(6);
+                document.getElementById('approxValue').textContent = calculation.result.toFixed(6);
+                document.getElementById('errorValue').textContent = error.toFixed(6);
+                document.getElementById('precisionValue').textContent = precision.toFixed(2) + '%';
+                document.getElementById('precisionPercent').textContent = precision.toFixed(1) + '%';
+
+                const precisionFill = document.getElementById('precisionFill');
+                precisionFill.style.width = Math.min(precision, 100) + '%';
+                precisionFill.style.background = precision > 95 ? '#059669' : precision > 85 ? '#d97706' : '#dc2626';
+
+                updateTermsDisplay(calculation.terms);
+                updateChart();
+            } catch (error) {
+                console.error('Error en updateCalculation:', error);
+                alert('Error en el cálculo. Verifica los valores ingresados.');
+            }
+        }
+
+        function updateTermsDisplay(terms) {
+            const container = document.getElementById('termsContainer');
+            container.innerHTML = '';
+            
+            terms.forEach((term, index) => {
+                const termDiv = document.createElement('div');
+                termDiv.className = 'term-item';
+                termDiv.setAttribute('role', 'listitem');
+                termDiv.innerHTML = `
+                    <div class="term-number">${term.term}</div>
+                    <div>
+                        <div style="font-family: monospace; font-size: 0.875rem;">${term.formula}</div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">Término ${term.term}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-family: monospace; font-weight: bold;">${term.value.toFixed(6)}</div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">
+                            ${Math.abs(term.value / functions[state.currentFunc].calculate(state.inputValue, state.centerPoint, state.numTerms).result * 100).toFixed(1)}%
+                        </div>
+                    </div>
+                `;
+                container.appendChild(termDiv);
+            });
+        }
+
+        function updateChart() {
+            const canvas = document.getElementById('chart');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            const padding = 40;
+            const chartWidth = width - 2 * padding;
+            const chartHeight = height - 2 * padding;
+            
+            const start = state.centerPoint - 2 * Math.PI;
+            const end = state.centerPoint + 2 * Math.PI;
+            const steps = 200;
+            const stepSize = (end - start) / steps;
+            
+            const realData = [];
+            const approxData = [];
+            let minY = Infinity, maxY = -Infinity;
+            
+            try {
+                for (let i = 0; i <= steps; i++) {
+                    const x = start + i * stepSize;
+                    const real = functions[state.currentFunc].realValue(x);
+                    const approx = functions[state.currentFunc].calculate(x, state.centerPoint, state.numTerms).result;
+                    
+                    if (!isNaN(real) && !isNaN(approx)) {
+                        realData.push({ x, y: real });
+                        approxData.push({ x, y: approx });
+                        minY = Math.min(minY, real, approx);
+                        maxY = Math.max(maxY, real, approx);
+                    }
+                }
+                
+                const yRange = maxY - minY;
+                minY -= yRange * 0.1;
+                maxY += yRange * 0.1;
+                
+                function toCanvasX(x) {
+                    return padding + (x - start) / (end - start) * chartWidth;
+                }
+                
+                function toCanvasY(y) {
+                    return padding + (maxY - y) / (maxY - minY) * chartHeight;
+                }
+                
+                ctx.strokeStyle = state.darkMode ? '#4b5563' : '#e5e7eb';
+                ctx.lineWidth = 1;
+                
+                for (let i = 0; i <= 10; i++) {
+                    const x = start + (end - start) * i / 10;
+                    const canvasX = toCanvasX(x);
+                    ctx.beginPath();
+                    ctx.moveTo(canvasX, padding);
+                    ctx.lineTo(canvasX, height - padding);
+                    ctx.stroke();
+                }
+                
+                for (let i = 0; i <= 10; i++) {
+                    const y = minY + (maxY - minY) * i / 10;
+                    const canvasY = toCanvasY(y);
+                    ctx.beginPath();
+                    ctx.moveTo(padding, canvasY);
+                    ctx.lineTo(width - padding, canvasY);
+                    ctx.stroke();
+                }
+                
+                ctx.strokeStyle = state.darkMode ? '#9ca3af' : '#6b7280';
+                ctx.lineWidth = 2;
+                
+                if (minY <= 0 && maxY >= 0) {
+                    const zeroY = toCanvasY(0);
+                    ctx.beginPath();
+                    ctx.moveTo(padding, zeroY);
+                    ctx.lineTo(width - padding, zeroY);
+                    ctx.stroke();
+                }
+                
+                if (start <= 0 && end >= 0) {
+                    const zeroX = toCanvasX(0);
+                    ctx.beginPath();
+                    ctx.moveTo(zeroX, padding);
+                    ctx.lineTo(zeroX, height - padding);
+                    ctx.stroke();
+                }
+                
+                ctx.strokeStyle = '#2563eb';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(realData[0].x), toCanvasY(realData[0].y));
+                for (let i = 1; i < realData.length; i++) {
+                    ctx.lineTo(toCanvasX(realData[i].x), toCanvasY(realData[i].y));
+                }
+                ctx.stroke();
+                
+                ctx.strokeStyle = state.themeColor;
+                ctx.lineWidth = 3;
+                ctx.setLineDash([8, 8]);
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(approxData[0].x), toCanvasY(approxData[0].y));
+                for (let i = 1; i < approxData.length; i++) {
+                    ctx.lineTo(toCanvasX(approxData[i].x), toCanvasY(approxData[i].y));
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                const currentX = toCanvasX(state.inputValue);
+                const currentRealY = toCanvasY(functions[state.currentFunc].realValue(state.inputValue));
+                const currentApproxY = toCanvasY(functions[state.currentFunc].calculate(state.inputValue, state.centerPoint, state.numTerms).result);
+                
+                ctx.fillStyle = '#2563eb';
+                ctx.beginPath();
+                ctx.arc(currentX, currentRealY, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.fillStyle = state.themeColor;
+                ctx.beginPath();
+                ctx.arc(currentX, currentApproxY, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                const centerX = toCanvasX(state.centerPoint);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(centerX, padding);
+                ctx.lineTo(centerX, height - padding);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            } catch (error) {
+                console.error('Error en updateChart:', error);
+            }
+        }
+
+        function setThemeColor(color) {
+            state.themeColor = color;
+            document.documentElement.style.setProperty('--theme-color', color);
+            document.documentElement.style.setProperty('--theme-color-light', color + '20');
+            document.querySelectorAll('.color-option').forEach(option => {
+                option.classList.remove('active');
+                option.setAttribute('aria-checked', 'false');
+            });
+            event.target.classList.add('active');
+            event.target.setAttribute('aria-checked', 'true');
+            updateCalculation();
+            vibrate([30]);
+        }
+
+        function toggleDarkMode() {
+            state.darkMode = !state.darkMode;
+            document.body.classList.toggle('dark', state.darkMode);
+            document.getElementById('theme-icon').textContent = state.darkMode ? '☀️' : '🌙';
+            updateCalculation();
+            vibrate([30]);
+        }
+
+        function showExplanation() {
+            const func = functions[state.currentFunc];
+            document.getElementById('explanationTitle').textContent = func.name;
+            document.getElementById('explanationContent').innerHTML = `
+                <div>
+                    <h4>Fórmula de la Serie:</h4>
+                    <div style="font-family: monospace; background: ${state.darkMode ? '#4b5563' : '#f3f4f6'}; padding: 1rem; border-radius: 0.5rem;">${func.formula}</div>
+                </div>
+                <div>
+                    <h4>¿Para qué sirve?</h4>
+                    <p>${func.description}</p>
+                </div>
+                <div>
+                    <h4>Aplicaciones:</h4>
+                    <p>${func.uses}</p>
+                </div>
+            `;
+            document.getElementById('explanationModal').classList.remove('hidden');
+            vibrate([50]);
+        }
+
+        function showUses() {
+            const func = functions[state.currentFunc];
+            document.getElementById('usesTitle').textContent = func.name;
+            document.getElementById('usesContent').innerHTML = `
+                <div style="margin-bottom: 1rem; padding: 1rem; background: #dbeafe; border-radius: 0.5rem; border: 1px solid #93c5fd;">
+                    <h4>En tu vida cotidiana:</h4>
+                    <p>${func.description}</p>
+                </div>
+                <div style="margin-bottom: 1rem; padding: 1rem; background: #d1fae5; border-radius: 0.5rem; border: 1px solid #86efac;">
+                    <h4>Aplicaciones tecnológicas:</h4>
+                    <p>${func.uses}</p>
+                </div>
+                <div style="padding: 1rem; background: ${state.darkMode ? '#4b5563' : '#f3f4f6'}; border-radius: 0.5rem;">
+                    <h4>¿Por qué aproximaciones?</h4>
+                    <p>Las computadoras usan series de Taylor para calcular funciones como ${func.name} de forma rápida y precisa.</p>
+                </div>
+            `;
+            document.getElementById('usesModal').classList.remove('hidden');
+            vibrate([50]);
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+            vibrate([30]);
+        }
+
+        function saveToHistory() {
+            const func = functions[state.currentFunc];
+            const calculation = func.calculate(state.inputValue, state.centerPoint, state.numTerms);
+            if (isNaN(calculation.result)) return;
+            const historyItem = {
+                id: Date.now(),
+                function: state.currentFunc,
+                input: state.inputValue,
+                center: state.centerPoint,
+                terms: state.numTerms,
+                result: calculation.result,
+                timestamp: new Date().toLocaleTimeString()
+            };
+            state.history.unshift(historyItem);
+            if (state.history.length > 10) state.history.pop();
+            vibrate([50]);
+            alert('¡Cálculo guardado en el historial! 📚');
+        }
+
+        function resetAll() {
+            state.currentFunc = 'sin';
+            state.centerPoint = 0;
+            state.numTerms = 3;
+            state.inputValue = 1;
+            
+            document.querySelectorAll('.function-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.function-btn').classList.add('active');
+            document.getElementById('currentFunction').textContent = 'sin(x)';
+            document.getElementById('centerSlider').value = 0;
+            document.getElementById('centerValue').textContent = '0';
+            document.getElementById('termsSlider').value = 3;
+            document.getElementById('termsValue').textContent = '3';
+            document.getElementById('inputValue').value = 1;
+            
+            updateCalculation();
+            vibrate([50]);
+        }
+
+        function exportChart() {
+            const canvas = document.getElementById('chart');
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = 'taylor-cal-chart.png';
+            link.click();
+            vibrate([50]);
+        }
+
+        function resetChart() {
+            updateCalculation();
+            vibrate([30]);
+        }
+
+        function setActiveTab(tab) {
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+            event.target.setAttribute('aria-current', 'page');
+            vibrate([30]);
+            
+            if (tab === 'history') {
+                alert(`📚 Historial: ${state.history.length ? `${state.history.length} cálculos guardados` : 'No hay cálculos guardados'}`);
+            } else if (tab === 'settings') {
+                alert('⚙️ Configuración: Usa los controles del header para cambiar tema y colores');
+            }
+        }
+
+        // Onboarding
+        const onboardingSteps = [
+            { title: '¡Bienvenido a T-CAL!', text: 'Tu calculadora de Series de Taylor', action: 'Comenzar' },
+            { title: 'Selecciona una función', text: 'Toca cualquier función matemática', action: 'Siguiente' },
+            { title: 'Ajusta parámetros', text: 'Desliza para cambiar centro y términos', action: 'Siguiente' },
+            { title: '¡Listo para calcular!', text: 'Explora y disfruta aprendiendo', action: 'Empezar' }
+        ];
+
+        function nextOnboarding() {
+            if (state.onboardingStep < onboardingSteps.length - 1) {
+                state.onboardingStep++;
+                updateOnboarding();
+            } else {
+                document.getElementById('onboarding').classList.add('hidden');
+            }
+            vibrate([50]);
+        }
+
+        function prevOnboarding() {
+            if (state.onboardingStep > 0) {
+                state.onboardingStep--;
+                updateOnboarding();
+            }
+            vibrate([30]);
+        }
+
+        function updateOnboarding() {
+            const step = onboardingSteps[state.onboardingStep];
+            document.getElementById('onboardingTitle').textContent = step.title;
+            document.getElementById('onboardingText').textContent = step.text;
+            document.getElementById('onboardingNext').textContent = step.action;
+            document.getElementById('onboardingPrev').style.display = state.onboardingStep > 0 ? 'block' : 'none';
+            
+            document.querySelectorAll('.onboarding-dot').forEach((dot, index) => {
+                dot.classList.toggle('active', index === state.onboardingStep);
+            });
+        }
+
+        // Gestos táctiles
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!touchStartX || !touchStartY) return;
+            
+            const touchEndX = e.touches[0].clientX;
+            const touchEndY = e.touches[0].clientY;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            
+            if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                const funcKeys = Object.keys(functions);
+                const currentIndex = funcKeys.indexOf(state.currentFunc);
+                
+                if (deltaX > 0 && currentIndex > 0) {
+                    selectFunction(funcKeys[currentIndex - 1]);
+                } else if (deltaX < 0 && currentIndex < funcKeys.length - 1) {
+                    selectFunction(funcKeys[currentIndex + 1]);
+                }
+                
+                touchStartX = 0;
+                touchStartY = 0;
+            }
+        });
+
+        // Inicialización
+        function init() {
+            document.documentElement.style.setProperty('--theme-color', state.themeColor);
+            document.documentElement.style.setProperty('--theme-color-light', state.themeColor + '20');
+            
+            const style = document.createElement('style');
+            style.textContent = `
+                .onboarding-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: #d1d5db;
+                    transition: all 0.2s;
+                }
+                .onboarding-dot.active {
+                    background: var(--theme-color, #dc2626);
+                    transform: scale(1.2);
+                }
+            `;
+            document.head.appendChild(style);
+            
+            updateCalculation();
+            
+            setTimeout(() => {
+                document.getElementById('onboarding').classList.add('hidden');
+            }, 15000);
+            
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('data:text/javascript;base64,Ly8gU2ltcGxlIFNlcnZpY2UgV29ya2VyIGZvciBUYXlsb3IgQ2FsCmNvbnN0IENBQ0hFX05BTUUgPSAndGF5bG9yLWNhbC12Mi4wLjAnOwpjb25zdCB1cmxzVG9DYWNoZSA9IFsnLyddOwoKc2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgZXZlbnQgPT4gewogICAgZXZlbnQud2FpdFVudGlsKAogICAgICAgIGNhY2hlcy5vcGVuKENBQ0hFX05BTUUpCiAgICAgICAgICAgIC50aGVuKGNhY2hlID0+IGNhY2hlLmFkZEFsbCh1cmxzVG9DYWNoZSkpCiAgICApOwp9KTsKCnNlbGYuYWRkRXZlbnRMaXN0ZW5lcignZmV0Y2gnLCBldmVudCA9PiB7CiAgICBldmVudC5yZXNwb25kV2l0aCgKICAgICAgICBjYWNoZXMubWF0Y2goZXZlbnQucmVxdWVzdCkKICAgICAgICAgICAgLnRoZW4ocmVzcG9uc2UgPT4gcmVzcG9uc2UgfHwgZmV0Y2goZXZlbnQucmVxdWVzdCkpCiAgICApOwp9KTsKCnNlbGYuYWRkRXZlbnRMaXN0ZW5lcignYWN0aXZhdGUnLCBldmVudCA9PiB7CiAgICBjb25zdCBjYWNoZVdoaXRlbGlzdCA9IFtDQUNIRV9OQU1FXTsKICAgIGV2ZW50LndhaXRVbnRpbCgKICAgICAgICBjYWNoZXMua2V5cygpLnRoZW4oY2FjaGVOYW1lcyA9PiB7CiAgICAgICAgICAgIHJldHVybiBQcm9taXNlLmFsbCgKICAgICAgICAgICAgICAgIGNhY2hlTmFtZXMubWFwKGNhY2hlTmFtZSA9PiB7CiAgICAgICAgICAgICAgICAgICAgaWYgKCFjYWNoZVdoaXRlbGlzdC5pbmNsdWRlcyhjYWNoZU5hbWUpKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybiBjYWNoZXMuZGVsZXRlKGNhY2hlTmFtZSk7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgfSkKICAgICAgICAgICAgKTsKICAgICAgICB9KQogICAgKTsKfSk7')
+                    .then(() => console.log('Service Worker registrado'))
+                    .catch(error => console.error('Error al registrar Service Worker:', error));
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
