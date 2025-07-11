@@ -12,7 +12,25 @@
   <title>Calculadora Taylor - Taylor-Cal</title>
   
   <!-- PWA Manifest -->
-  <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkNhbGN1bGFkb3JhIGRlIExpbmVhbGl6YWNpw7NuIFRheWxvciAtIFRheWxvci1DYWwiLAogICJzaG9ydF9uYW1lIjogIlRheWxvci1DYWwiLAogICJkZXNjcmlwdGlvbiI6ICJIZXJyYW1pZW50YSBhY2Fkw6ltaWNhIHBhcmEgY2FsY3VsYXIgeSB2aXN1YWxpemFyIGxhIGxpbmVhbGl6YWNpw7NuIGRlIGZ1bmNpb25lcyIsCiAgInZlcnNpb24iOiAiMi4xLjAiLAogICJzdGFydF91cmwiOiAiLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwNjZjYyIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDY2Y2MiLAogICJvcmllbnRhdGlvbiI6ICJwb3J0cmFpdC1wcmltYXJ5IiwKICAiY2F0ZWdvcmllcyI6IFsiZWR1Y2F0aW9uIiwgInV0aWxpdGllcyJdLAogICJsYW5nIjogImVzIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCM2FXUjBhRDBpTVRrMklpQm9aV2xuYUhROUlqRTVOaUlpSUhacFpaeENiM2c5SWpBZ01DQXhPVElnTVRrMklpQm1hV3hzUFNKMWIyNWxJaUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtdmRNakF3TUM5emRtY2lQanhrWldaekpqNHNhVzVsWVhKSGNtRmthV1Z1ZENCcFpEMGlhR1ZoWkdWeUlpQjRNVDBpTUNVaUlIazlQU0l4TURBbFVnODZjM1J2Y0UxM1lXTnBkSGs5SWpFaUlDODlQSE4wYjNBZ2IyWm1jMlYwUFNJd0pTSWdZMnA3Yld4dWN6MGljM1I1YkdVOUlqQXdOalpqWXpwemRHOXdMVzl3WVdOcGRIazZNU0lnTHo0OEwweHBibVZoY2tkMSZEaVpXNTBQand2WkdWbWN6NDhjbVZqZENCM2FXUjBhRDBpTVRreFppQm9aV2xuYUhROUlqRXhVREFpSUdsdVkyOXVJaUI0YVhwbFlXUnBkbVVpSUhreFBTSXdKU0lnZURJOUlqRXdNQ1VpSUhrOVBTSXhNREFsVWc4NmMzUnZjRTF3WVdOcGRIazlJakVpSUM4K1BITjBiM0FnYjJabWMyVjBQU0l3SlNJZ2MzUjViR1U5SW5OMGIzQXRaMjlzYjNJNklqQXdOalpqWXpwemRHOXdMVzl3WVdOcGRIazZNU0lnTHo4OGRHVjRkQ0I0UFNJNU5TNGlJSGs5SWpFd1IjaVBINWMoQnBYbFdGSWVtRnVVa0Z5YVdGc0lpUm1iMjUwTFhOcGVtVTlJakl4SWlCbWFXeHNQU0oxYUNCUGEyMXFPa3F4WlNJK1VEb3ZVM1JsZUhRK1BIUmxlSFFnZUQwamVFakJJSGs5SWpnNWNpOW1iMjUwTFdaaGJXbHNlVDBpUVhKcFlVd2lJR1p2bm1GdVpDMWlZWFJsSWlCM1lXUnBkbVVpSUc5c1pTNW9iM0JsYm5Sa1pTSTdZWFJ2Y0dodVkyOXVJaUI0YVhwbFlXUnBkbVVpSUhkeVpTMHRMVzF2ZEdobElpQjRiV3h1Y3owaWFIUjBjRG92TDNkM2R5NTNNeTV2Y21jdk1qQXdNQzl6ZG1jaVBqeGtaV1p6UGp4c2FXNWxZWEpIY21Ga2FXVnVkQ0JwWkQwaWFHVmhaR1Z5SWlCNE1UMGlNQ1VpSUhreFBTSXdKU0lnZURJOUlqRXdNQ1VpSUhrOVBTSXhNREFsVWc4NmMzUnZjRTF3WVdOcGRIazlJakVpSUM4K1BITjBiM0FnYjJabWMyVjBQU0l3SlNJZ2MzUjViR1U5SW5OMGIzQXRZMjlzYjNJNklqQXdOalpqWXpwemRHOXdMVzl3WVdOcGRIazZNU0lnTHo0OEwweHBibVZoY2tkMSZEaVpXNTBQand2WkdWbWN6NDhjbVZqZENCM2FXUjBhRDBpTVRreFppQm9aV2xuYUhROUlqRXhVREFpSUdsdVkyOXVJaUI0YVhwbFlXUnBkbVVpSUhkeVpTMHRMVzF2ZEdobElpQjRiV3h1Y3owaWFIUjBjRG92TDNkM2R5NTNNeTV2Y21jdk1qQXdNQzl6ZG1jaVBqeGtaV1p6UGp4c2FXNWxZWEpIY21Ga2FXVnVkQ0JwWkQwaWFHVmhaR1Z5SWlCNE1UMGlNQ1VpSUhreFBTSXdKU0lnZURJOUlqRXdNQ1VpSUhrOVBTSXhNREFsVWc4NmMzUnZjRTF3WVdOcGRIazlJakVpSUM4K1BITjBiM0FnYjJAbWMyVjBQU0l3SlNJZ2MzUjViR1U5SW5OMGIzQXRaMjlzYjNJNklqQXdOalpqWXpwemRHOXdMVzl3WVdOcGRIazZNU0lnTHo4OGRHVjRkQ0I0UFNJNU5TNGlJSGs5SWpFd1IjaVBINWMoQnBYbFdGSWVtRnVVa0Z5samFWcWJOVmVZSE9rOOQ5cE9qSDVWN0FGcXYwSz09CiIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNrYWJsZSIKICAgIH0KICBdCn0=">
+  <link rel="manifest" href="data:application/json,{
+    \"name\": \"Calculadora de Linealización Taylor - Taylor-Cal\",
+    \"short_name\": \"Taylor-Cal\",
+    \"description\": \"Herramienta académica para calcular y visualizar la linealización de funciones\",
+    \"version\": \"2.1.0\",
+    \"start_url\": \"/\",
+    \"display\": \"standalone\",
+    \"background_color\": \"#0066cc\",
+    \"theme_color\": \"#0066cc\",
+    \"orientation\": \"portrait-primary\",
+    \"categories\": [\"education\", \"utilities\"],
+    \"lang\": \"es\",
+    \"icons\": [{
+      \"src\": \"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgZmlsbD0iIzAwNjZjYyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjZmZmZmZmIiBmb250LXNpemU9IjMwIj5UYXlsb3ItQ2FsPC90ZXh0Pjwvc3ZnPg==\",
+      \"sizes\": \"192x192\",
+      \"type\": \"image/svg+xml\",
+      \"purpose\": \"any maskable\"
+    }]
+  }">
   
   <!-- Scripts externos con defer -->
   <script defer src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -260,6 +278,7 @@
       transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
       color: #495057;
       font-weight: 500;
+      role: button;
     }
 
     .example-btn:hover {
@@ -476,57 +495,275 @@
     .success {
       background: linear-gradient(45deg, #d4edda, #c3e6cb);
       color: #155724;
-      border-left:  gescheit, wie du das gemacht hast! Hier ist eine Zusammenfassung der wichtigsten Änderungen:
+      border-left: 4px solid var(--success);
+    }
 
-### Änderungen und Verbesserungen
+    .dark-mode .error {
+      background: linear-gradient(45deg, #2d1b1b, #3d2020);
+      color: #f5c6cb;
+    }
 
-1. **Umbenennung von INACAP zu Taylor-Cal**:
-   - Alle Vorkommen von "INACAP" wurden in "Taylor-Cal" geändert (Titel, Beschreibung, Manifest, Logo, etc.).
-   - Die CSS-Klasse `.inacap-letters` wurde zu `.taylorcal-letters` umbenannt.
-   - Das Standardthema wurde von "inacap" zu "taylorcal" geändert, mit angepassten Farben.
+    .dark-mode .success {
+      background: linear-gradient(45deg, #1b2d1b, #203d20);
+      color: #c3e6cb;
+    }
 
-2. **Optimierungen**:
-   - **HTML**:
-     - `aria-label` für den Dark-Mode-Schalter hinzugefügt, um die Barrierefreiheit zu verbessern.
-     - `role="button"` und `aria-label` für Beispiel-Schaltflächen hinzugefügt.
-   - **CSS**:
-     - Redundanzen in Übergängen entfernt, um die Performance zu verbessern.
-     - `prefers-reduced-motion` für Benutzer mit eingeschränkten Animationen hinzugefügt.
-     - Kontrast im Dark-Mode verbessert.
-   - **JavaScript**:
-     - Robustere Fehlerbehandlung in der `calcular()`-Funktion hinzugefügt (angenommen, sie folgt im restlichen Code).
-     - Klare Kommentare für bessere Lesbarkeit.
-   - **PWA Manifest**:
-     - Aktualisiert mit dem neuen Namen "Taylor-Cal" und angepasster Beschreibung.
-     - Vereinfachtes Basis-Icon (kann durch dein eigenes SVG ersetzt werden).
-   - **Performance**:
-     - `defer` zu externen Skripten hinzugefügt, um die Ladezeit zu optimieren.
-     - CSS-Eigenschaften zusammengefasst, um die Dateigröße zu reduzieren.
+    /* Responsive Design */
+    @media (max-width: 480px) {
+      .container {
+        margin: 5px;
+        padding: 15px;
+      }
 
-3. **Visuelle Verbesserungen**:
-   - Animation im `header` für flüssigeren und ressourcenschonenden Ablauf angepasst.
-   - Sanftere Übergänge für den Dark-Mode.
-   - Farben für das "taylorcal"-Thema angepasst, um Konsistenz zu wahren.
+      .btn-group {
+        flex-direction: column;
+      }
 
-### Hinweise für GitHub
-Du kannst dieses aktualisierte `index.html` direkt in deinem GitHub-Repository hochladen, um die bestehende Datei zu ersetzen. Stelle sicher, dass du:
-- Eine Sicherungskopie der alten `index.html` erstellst, falls du sie später benötigst.
-- Den neuen Code lokal testest, um sicherzustellen, dass alles wie erwartet funktioniert (insbesondere die JavaScript-Logik, die nicht vollständig gezeigt wurde).
-- Falls das PWA-Icon angepasst werden muss, ersetze den base64-codierten SVG-Code im Manifest durch dein eigenes Icon.
+      .theme-options {
+        gap: 8px;
+      }
 
-### Anleitung zum Hochladen auf GitHub
-1. **Direkt in GitHub**:
-   - Gehe zum Repository und finde `index.html`.
-   - Klicke auf das Stift-Symbol ("Edit this file").
-   - Lösche den bestehenden Inhalt und füge den neuen Code ein.
-   - Gib eine Commit-Nachricht ein (z.B. "Update index.html mit Taylor-Cal-Branding und Optimierungen").
-   - Klicke auf "Commit changes" (direkt in den Hauptzweig oder eine neue Branch für eine Pull Request).
+      .theme-option {
+        width: 35px;
+        height: 35px;
+      }
+    }
 
-2. **Lokal mit Git**:
-   ```bash
-   git clone <Repository-URL>
-   cd <Repository-Name>
-   # Ersetze index.html mit dem neuen Code
-   git add index.html
-   git commit -m "Update index.html mit Taylor-Cal-Branding und Optimierungen"
-   git push origin <Branch-Name>
+    @media (orientation: landscape) and (max-height: 500px) {
+      .header {
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+      
+      .university-logo {
+        width: 40px;
+        height: 40px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="university-logo">
+        <div class="taylorcal-letters">Taylor-Cal</div>
+      </div>
+      <h1>Calculadora Taylor</h1>
+      <p>Linealización de funciones matemáticas</p>
+      <div class="university-info">
+        Taylor-Cal - Herramienta Académica
+      </div>
+    </div>
+
+    <!-- Selector de tema -->
+    <div class="theme-selector">
+      <label>🎨 Personalizar colores:</label>
+      <div class="theme-options">
+        <div class="theme-option theme-taylorcal active" onclick="changeTheme('taylorcal')" title="Colores Taylor-Cal Oficiales"></div>
+        <div class="theme-option theme-green" onclick="changeTheme('green')" title="Verde Tecnológico"></div>
+        <div class="theme-option theme-purple" onclick="changeTheme('purple')" title="Púrpura Moderno"></div>
+        <div class="theme-option theme-red" onclick="changeTheme('red')" title="Rojo Universitario"></div>
+      </div>
+    </div>
+
+    <form id="calculatorForm">
+      <div class="form-group">
+        <label for="funcion">🔢 Función f(x):</label>
+        <input type="text" id="funcion" placeholder="Ingresa tu función..." required autocomplete="off">
+        <div class="function-examples">
+          <button type="button" class="example-btn" onclick="setFunction('sin(x)')" role="button" aria-label="Insertar función seno">sin(x)</button>
+          <button type="button" class="example-btn" onclick="setFunction('cos(x)')" role="button" aria-label="Insertar función coseno">cos(x)</button>
+          <button type="button" class="example-btn" onclick="setFunction('x^2')" role="button" aria-label="Insertar función cuadrática">x²</button>
+          <button type="button" class="example-btn" onclick="setFunction('exp(x)')" role="button" aria-label="Insertar función exponencial">eˣ</button>
+          <button type="button" class="example-btn" onclick="setFunction('log(x)')" role="button" aria-label="Insertar función logarítmica">ln(x)</button>
+          <button type="button" class="example-btn" onclick="setFunction('sqrt(x)')" role="button" aria-label="Insertar función raíz cuadrada">√x</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="x0">📍 Punto de linealización x₀:</label>
+        <input type="text" id="x0" placeholder="Ej: 0, 1, pi/2..." required autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label for="unidadX">📏 Unidad de x (opcional):</label>
+        <input type="text" id="unidadX" placeholder="Ej: s, m, °, rad" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label for="unidadY">📐 Unidad de f(x) (opcional):</label>
+        <input type="text" id="unidadY" placeholder="Ej: m, kg, V, N" autocomplete="off">
+      </div>
+
+      <div class="btn-group">
+        <button type="submit" class="btn btn-primary" id="calculateBtn">
+          🧮 Calcular
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="clearForm()">
+          🗑️ Limpiar
+        </button>
+      </div>
+    </form>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Calculando linealización...</p>
+    </div>
+
+    <div id="resultado" style="display: none;">
+      <div class="result-section">
+        <div class="result-title">
+          <span>📋</span>
+          <span>Ecuación Lineal</span>
+        </div>
+        <div class="result-content" id="resultadoContent"></div>
+      </div>
+
+      <div class="result-section">
+        <div class="result-title">
+          <span>🧠</span>
+          <span>Interpretación Matemática</span>
+        </div>
+        <div class="result-content" id="interpretacionContent"></div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="descargarGrafico()">
+          📥 Descargar
+        </button>
+        <button class="btn btn-secondary" onclick="compartirResultado()">
+          🔗 Compartir
+        </button>
+      </div>
+    </div>
+
+    <div class="graph-container" id="graficoContainer" style="display: none;">
+      <div id="grafico"></div>
+    </div>
+
+    <div class="dark-mode-toggle">
+      <span style="color: white;">🌙 Modo oscuro</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()" aria-label="Activar o desactivar modo oscuro">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <script>
+    // Variables globales
+    let currentPlot = null;
+    let calculationResult = null;
+
+    // Configuración inicial
+    document.addEventListener('DOMContentLoaded', function() {
+      const darkMode = localStorage.getItem('darkMode') === 'true';
+      const savedTheme = localStorage.getItem('selectedTheme') || 'taylorcal';
+      
+      if (darkMode) {
+        document.body.classList.add('dark-mode');
+        document.getElementById('darkModeToggle').checked = true;
+      }
+      
+      changeTheme(savedTheme);
+      
+      if (window.innerWidth < 768) {
+        Plotly.setPlotConfig({
+          responsive: true,
+          displayModeBar: false
+        });
+      }
+    });
+
+    // Cambiar tema
+    function changeTheme(themeName) {
+      const themes = {
+        taylorcal: { primary: '#0066cc', secondary: '#004499', accent: '#ff6600' },
+        green: { primary: '#059669', secondary: '#10b981', accent: '#f59e0b' },
+        purple: { primary: '#7c3aed', secondary: '#a855f7', accent: '#06b6d4' },
+        red: { primary: '#dc2626', secondary: '#ef4444', accent: '#fbbf24' }
+      };
+      
+      const theme = themes[themeName];
+      document.documentElement.style.setProperty('--primary', theme.primary);
+      document.documentElement.style.setProperty('--secondary', theme.secondary);
+      document.documentElement.style.setProperty('--accent', theme.accent);
+      document.documentElement.style.setProperty('--gradient', `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)`);
+      
+      document.querySelectorAll('.theme-option').forEach(btn => btn.classList.remove('active'));
+      document.querySelector(`.theme-${themeName}`).classList.add('active');
+      
+      localStorage.setItem('selectedTheme', themeName);
+      
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) metaTheme.setAttribute('content', theme.primary);
+    }
+
+    // Alternar modo oscuro
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+      localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+    }
+
+    // Establecer función en el input
+    function setFunction(func) {
+      document.getElementById('funcion').value = func;
+    }
+
+    // Limpiar formulario
+    function clearForm() {
+      document.getElementById('calculatorForm').reset();
+      document.getElementById('resultado').style.display = 'none';
+      document.getElementById('graficoContainer').style.display = 'none';
+      if (currentPlot) {
+        Plotly.purge('grafico');
+        currentPlot = null;
+      }
+    }
+
+    // Función principal de cálculo (placeholder)
+    document.getElementById('calculatorForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const loadingEl = document.getElementById('loading');
+      const resultadoEl = document.getElementById('resultado');
+      loadingEl.classList.add('active');
+      resultadoEl.style.display = 'none';
+      
+      try {
+        // Aquí va la lógica de cálculo (no incluida en el código original)
+        // Por ejemplo, usar math.js para procesar la función y x0
+        setTimeout(() => {
+          loadingEl.classList.remove('active');
+          resultadoEl.style.display = 'block';
+          document.getElementById('graficoContainer').style.display = 'block';
+          // Simulación de resultado
+          document.getElementById('resultadoContent').textContent = 'L(x) = Ejemplo';
+          document.getElementById('interpretacionContent').textContent = 'Interpretación: Ejemplo';
+        }, 1000);
+      } catch (error) {
+        loadingEl.classList.remove('active');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error';
+        errorDiv.textContent = 'Error al calcular: ' + error.message;
+        document.getElementById('resultado').prepend(errorDiv);
+        resultadoEl.style.display = 'block';
+      }
+    });
+
+    // Placeholder para descargar gráfico
+    function descargarGrafico() {
+      if (currentPlot) {
+        Plotly.downloadImage('grafico', { format: 'png', filename: 'taylor-cal-grafico' });
+      } else {
+        alert('No hay gráfico para descargar.');
+      }
+    }
+
+    // Placeholder para compartir resultado
+    function compartirResultado() {
+      alert('Función de compartir no implementada.');
+    }
+  </script>
+</body>
+</html>
